@@ -1,19 +1,50 @@
+; La variables que necesitamos son
+; m_g que es el factor de objetivo
+; m_c que es el factor de cohesion
+; m_s que es el factor de separacion
+; m_l que es el factor de alineamiento
+; m_o que es el factor de obstaculo (aun no lo usamos)
+; T el umbral de incomodidad
+; T_M el umbral de invalidez, si alguien recive una fuerza mayor a esta no podra moverse
+
+; Luego creo algunas variables que nos pueden ser utiles
+; vMedia que sera la velocidad media de las personas
+; pMedio sera el panico medio
+; fMedio la fuerza media que recibe una persona
+; coef que es el factor de conversion de metros a patch de NetLogo (he estado probando con 1 y 2, con 2 parece que se vuelve loco por lo que lo dejo casi siempre en 1)
 globals [m_g m_c m_s m_l m_o T T_M vMedia pMedio fMedio coef]
 
+; Algunas propiedades de las personas,
+; seeExit es si ve o no la salida
+; r es el radio de la persona (la mitad de la distancia entre hombro y hombro)
+; w es el peso de una persona
+; v es la velocidad de una persona
+; p es el panico de una persona
+; F la fuerza que recibe
+; out es 1 si la persona ha salido ya, y 0 si no
 turtles-own [seeExit r w v p F out]
+
+; Los patches tienen la propiedad tipo, por ahora no se usa, pero la idea seria que habria patches con tipo salida u obstaculo
 patches-own [tipo]
 
+; Inicializamos las constantes que hemos definido. En el articulo se habla de que podriamos hacerlas propiedades de las personas que varien segun su estado, eso podria
+; ser interesante. Estos valores los he reducido porque con los que nos daba el autor del articulo salian locuras, he mantenido mas o menos la proporcion que el plantea
+; 40-50% del movimiento es el objetivo, 30% son los obstaculos y el resto es cohesion, separacion y alineacion, como en el ejemplo A no hay obstaculos he aumentado los
+; valores para que sigan siendo 100%. Dejo comentado los valores originales.
 to setup-cte
   set m_g 0.65 ;6.5
-  set m_c 0.1 ;0.25 ;1.5
-  set m_s 0.15 ;0.5 ;2.5
-  set m_l 0.1 ;0.25 ;1.5
+  set m_c 0.1  ;1.5
+  set m_s 0.15 ;2.5
+  set m_l 0.1  ;1.5
   set m_o 0.29 ;3.5
   set T 750
   set T_M 1600
   set coef 1
 end
 
+; Con el setup-A coloco la posicion que define el ejemplo A. Primero hago las paredes y la salida y en el interior coloco a la gente. En este caso empiezan con seeExit 1,
+; porque es una de las hipotesis del ejemplo y out 0 porque estan todos dentro. Esta puesto para que dos personas no puedan aparecer en el mismo patch porque eso es algo
+; que fisicamente es imposible, pero esta comentada la funcion que lo permite.
 to setup-A
   clear-all
   set nPersonas 400
@@ -27,6 +58,10 @@ to setup-A
   reset-ticks
 end
 
+; Con setup-person inicializamos los valores de las personas,
+; El r va entre 0.25 - 0.4
+; El w entre 40 - 80
+; La v entre 0.35 - 1.95, como es un vector lo convierto en una lista usando la direccion de la persona
 to setup-person
   ask turtles-here [set r (coef * (random 15 + 25) / 100) set w (random 40 + 40) set v setup-velocidad set p (random 100 / 100)]
 end
@@ -38,48 +73,58 @@ to-report setup-velocidad
   report list c1 c2
 end
 
+; go es la funcion que va a hacer que se muevan las personas. Inicializamos los valores informativos a 0 y luego los dividimos por el numero de personas que no han salido aun,
+; que son a los que les aplicamos evacuate. Por comodidad movemos a todas las personas que han salido a la casilla de salida para que sea mas visual lo que ocurre
 to go
   set vMedia 0
   set pMedio 0
   set fMedio 0
+  let nP (nPersonas - (count turtles with [out = 1]))
   ask turtles with [out = 0] [evacuate]
   ask turtles with [out = 1] [set xcor 0 set ycor max-pycor]
-  set vMedia (vMedia / (nPersonas - (count turtles with [out = 1])))
-  set pMedio (pMedio / (nPersonas - (count turtles with [out = 1])))
-  set fMedio (fMedio / (nPersonas - (count turtles with [out = 1])))
+  set vMedia (vMedia / nP)
+  set pMedio (pMedio / nP)
+  set fMedio (fMedio / nP)
   tick
 end
 
+; evacuate es la primera funcion intensa, sigue el proceso descrito en el articulo. Dado que NetLogo no trabaja con vectores, he tenido que improvisar y trabajar con listas. He
+; intentado seguir la nomenclatura del articulo en la mayor parte de las cosas
 to evacuate
   let O_g (map [a -> a * m_g] goal)
   let O_m (move m_s m_l m_o)
   let O_i (map + O_g O_m)
-  ifelse (p >= 0.5 and count neighbors with [count turtles-here > 0] > 0) [set O_i (move 0 0 0) set p p_avg] [set p panic]
-  ;if (p >= 0.5 and count neighbors with [count turtles-here > 0] > 0) [set O_i (move 0 0 0) set p p_avg]
+  ; En la siguiente linea actualizo el valor del panico, que aunque no lo describa en el algoritmo, en la figura 1 si lo describe asi, y entiendo que es necesario.
+  ifelse (p >= 0.5) [set O_i (move 0 0 0) set p p_avg] [set p panic]
   set pMedio (pMedio + p)
   set v (map + (map [a -> (1 - p) * a] O_i) (map [a -> a * p] v))
   let module sqrt((item 0 v) ^ 2 + (item 1 v) ^ 2)
   set vMedia (vMedia + module)
-  ;if module > 2 [show v show module]
-  ;show v
+
+  ; Una vez esta todo calculado sumo los vectores p y v componente a componente. Y compruebo si queda fuera de los limites, si es asi aplico un "rebote"
   let x (item 0 v + xcor)
-  ;show x
-  if x < (min-pxcor + 1) [set x (min-pxcor + 1 + ((- x) mod (2 * max-pxcor - 1)))] ;[set x (2 * (min-pxcor + 1) - x)]
-  if x > (max-pxcor - 1) [set x (max-pxcor - 1 - (x mod (2 * max-pxcor - 1)))] ;[set x (2 * (max-pxcor - 1) - x)]
-  ;show x
+  if x < (min-pxcor + 1) [set x (min-pxcor + 1 + ((- x) mod (2 * max-pxcor - 1)))]
+  if x > (max-pxcor - 1) [set x (max-pxcor - 1 - (x mod (2 * max-pxcor - 1)))]
   let y (item 1 v + ycor)
-  ;show y
-  if y < (min-pycor + 1) [set y (min-pycor + 1 + ((- y) mod (2 * max-pycor - 1)))] ;[set y (2 * (min-pycor + 1) - y)]
+  if y < (min-pycor + 1) [set y (min-pycor + 1 + ((- y) mod (2 * max-pycor - 1)))]
+  ; Si esta a 0.75 de la salida asumo que ha salido
   if y > (max-pycor - 1.75) and (x <= 0.75 and x >= -0.75) [set y max-pycor set x 0 set out 1]
-  if y > (max-pycor - 1) and x != 0  [set y (max-pycor - 1 - (y mod (2 * max-pycor - 1)))] ;[set y (2 * (max-pycor - 1) - y)]
+  if y > (max-pycor - 1) and x != 0  [set y (max-pycor - 1 - (y mod (2 * max-pycor - 1)))]
+
+  ; Para realizar el movimiento final habia dos opciones "teletransportar" a la persona al sitio correspondiente (seria el setxy que esta comentado) o evitar que una persona pudiera
+  ; cruzar sobre otra. Esto lo hago dividiendo el movimiento en pasos, de tamaño r (el radio de una persona) para que sea un valor arbitrario e intrinseco de cada individuo, es como
+  ; si fuera un paso. Lo que hago es "apuntar" a la casilla a la que debo ir, y el modulo de ese vector, la distancia a ese vector, es lo que me debo de mover, lo hago de r en r.
   ;setxy x y
   facexy x y
   let mov (distancexy x y)
   let mov2 r
-  ;while [(not fuera) and (not puedeMoverse 1 or count turtles-on ((other turtles-on patch-ahead 1) in-radius 0.25) with [out = 0] = 0) and mov > counter] [fd 1 set counter (counter + 1) set mov (mov - 1)]
+
+  ; Si no he salido de la sala (esto debemos de comprobarlo cada vez que se mueve), ni se choca con una pared (puedeMoverse) o se choca con alguien (puedeIr) y ademas el movimiento que
+  ; me queda es mayor que lo que voy a hacer en este paso y el movimiento que me queda no es 0, pues me muevo. Reduzco del movimiento que me queda el paso y si el siguiente paso es mas
+  ; grande que lo que me queda, me muevo la diferencia solo para acabar el movimiento.
   while [(not fuera) and (not puedeMoverse mov2 or puedeIr mov2) and mov > mov2 and mov != 0] [fd mov2 set mov (mov - mov2) if mov < mov2 [set mov2 (mov2 - mov)]]
 
-
+  ; Por ultimo, calculamos las fuerzas que se le aplica a la persona. Para esto vemos cuanta fuerza le ejerce cada persona de su entorno, y esto lo calculamos con la funcion fuerza
   let sumaF 0
   let ri r
   let vi v
@@ -87,10 +132,12 @@ to evacuate
   ask other turtles in-radius (coef * 8 * r) with [out = 0] [set sumaF (sumaF + (fuerza ri pos vi))]
   set F sumaF ; Esto es mu grande, hay q arreglar algo
   set fMedio (fMedio + F)
+
+  ; Si la fuerza es mayor que T_M queda inavilitado (le cambiamos el color y no debe de moverse, esto no esta hecho aun), si esta incomodo, le cambiamos el color pero este si se mueve.
   (ifelse (F >= T_M) [set color blue] (F >= T) [set color grey] [])
-;  show F
 end
 
+; puedeIr comprueba si al moverse se choca con el hombro de alguna persona, es decir, su distancia a esa persona es menor que el radio de dicha persona. Si esto ocurre, no se mueve.
 to-report puedeIr [mov]
   let x xcor + (mov * dx)
   let y ycor + (mov * dy)
@@ -99,24 +146,28 @@ to-report puedeIr [mov]
   ifelse b = 0 [report true] [report false]
 end
 
+; puedeMoverse comprueba si al moverse no se choca con una pared
 to-report puedeMoverse [mov]
   let x xcor + (mov * dx)
   let y ycor + (mov * dy)
   report x <= max-pxcor - 1 and x >= min-pxcor + 1 and y <= max-pycor - 1 and y >= min-pycor + 1
 end
 
+; fuera comprueba en cada paso si hemos salido o no ya.
 to-report fuera
   ifelse (ycor >= max-pycor - 1.75 and xcor >= -0.75 and xcor <= 0.75) [set out 1 set xcor 0 set ycor max-pycor report true] [report false]
 end
 
+; Esta funcion me esta fallando, me devuelve valores anormalmente grandes, no se que ocurre.
+; Sigue 100% la estructura del articulo, resolviendo algunos detalles que estan mal explicados en el articulo, lo podeis consultar en el PDF
+; Simulating dynamical features.
 to-report fuerza [radio pos vel]
   let A 2000
   let B (coef * 0.08)
-  let k1 1200
-  let k2 (2400 / coef)
+  let k1 12000
+  let k2 (24000 / coef)
   let Rij (radio + r)
-  let dij (distancexy (item 0 pos) (item 1 pos))
-  ;if dij = 0 [set dij 0.25]
+  let dij (distancexy (item 0 pos) (item 1 pos)) ; Como hemos dicho que la gente no se mueve si se choca, esto nunca va a ser 0
   let nu 0
   ifelse (Rij - dij) >= 0 [set nu (Rij - dij)] [set nu 0]
   let f1 (A * e ^ ((Rij - dij) / B) + k1 * nu)
@@ -130,18 +181,23 @@ to-report fuerza [radio pos vel]
   report sqrt((item 0 f3) ^ 2 + (item 1 f3) ^ 2)
 end
 
+; La funcion goal no esta acabada, solo esta hecha para el caso A. Esta funcion creo que la vamos a tener que cambiar bastante porque no esta muy
+; bien explicada en el articulo, la creacion de mapas no parece algo trivial y el del articulo le dedica la figura 2 que no explica mucho.
+; La idea que yo vi mas comoda y realista seria la imagen que os añado en recurso que se llama goal.
+; En principio en esta funcion lo que hago es hacer que todos apunten hacia la salida, porque la estan viendo, dependiendo de lo lejos que esten
+; el modulo del vector que apunta a la salida lo he hecho mas grande, como que la gente del fondo esta mas nerviosa, tiene mas prisa.
 to-report goal
   let c list 0 0
-  ifelse seeExit = 1 [facexy 0 max-pycor] [print "Algo Falla"]
+  ifelse seeExit = 1 [facexy 0 max-pycor] [print "Algo Falla"] ; Lo de algo falla es una tonteria
   (ifelse distancexy 0 max-pycor >= 2 * 2 * max-pycor / 3 [set c (list (2 * dx) (2 * dy))]
     distancexy 0 max-pycor >= 2 * max-pycor / 3 [set c (list (1.5 * dx) (1.5 * dy))]
-    ;distancexy 0 max-pycor <= 2 * max-pycor / 10 [set c list dx dy]
     [set c list dx dy])
   report c
 end
 
+; La funcion move tambien sigue la estructura del articulo. Creo los valores iniciales con los valores de la persona en cuention para luego no tener
+; que quitarla al hacer las cuentas (porque en ese momento no sabia sorry)
 to-report move[m_1 m_2 m_3]
-  ;show r
   let w_m (list (- xcor) (- ycor))
   let pos (list xcor ycor)
   let x (list 0 0)
@@ -169,6 +225,7 @@ to-report move[m_1 m_2 m_3]
   report v_m
 end
 
+; Esta funcion calcula el panico medio de los vecinos (las tortugas de los 8 patches que rodean a una persona)
 to-report p_avg
   let suma_p 0
   let vecinos 0
@@ -176,6 +233,7 @@ to-report p_avg
   (ifelse (vecinos = 0) [report p] [report suma_p / vecinos])
 end
 
+; Por ultimo esta funcion corresponde con lo que se habla en la seccion III.B, y sigo los pasos tal y como los describe.
 to-report panic
   let D (distancexy 0 max-pycor)
   if seeExit = 0 [set D (2 * max-pycor + 1)]
@@ -189,7 +247,6 @@ to-report panic
   ;d3 depende de las fuerzas
   let O (count turtles in-radius (coef * 8 * r) with [out = 0 and F >= T])
   let d3 O / (count turtles with [out = 0])
-  ;let d3 0
 
   let d4 (coef * 0.35 - module) / (coef * 1.95)
 
