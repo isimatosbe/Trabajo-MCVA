@@ -162,10 +162,10 @@ end
 ; Sigue 100% la estructura del articulo, resolviendo algunos detalles que estan mal explicados en el articulo, lo podeis consultar en el PDF
 ; Simulating dynamical features.
 to-report fuerza [radio pos vel]
-  let A 2000
+  let A 2
   let B (coef * 0.08)
-  let k1 12000
-  let k2 (24000 / coef)
+  let k1 120
+  let k2 (240 / coef)
   let Rij (radio + r)
   let dij (distancexy (item 0 pos) (item 1 pos)) ; Como hemos dicho que la gente no se mueve si se choca, esto nunca va a ser 0
   let nu 0
@@ -254,12 +254,18 @@ to-report panic
   let p_i (p + xi) / 2
   report p_i
 end
+
+; Para dibujar los obstaculos ejecutamos una función de manera indefinida (FOREVER) y comprobamos donde hace click el
+; usuario, en esas casillas mata a las tortugas que haya, las pinta de rojo y pone que son de tipo obstaculo.
+to draw-obstaculos
+  if mouse-down? [ask patch mouse-xcor mouse-ycor [ask turtles-here [die] set pcolor red set tipo "obstaculo"]]
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 13
 13
-761
-707
+763
+708
 -1
 -1
 14.0
@@ -283,10 +289,10 @@ ticks
 30.0
 
 BUTTON
-769
-14
-841
-49
+780
+121
+850
+155
 A
 setup-A
 NIL
@@ -301,9 +307,9 @@ NIL
 
 INPUTBOX
 774
-99
+188
 856
-161
+250
 nPersonas
 400.0
 1
@@ -312,9 +318,9 @@ Number
 
 BUTTON
 774
-164
+253
 858
-199
+288
 Go
 if count turtles with [out = 0] < nPersonas / 50 [stop]\ngo
 T
@@ -329,9 +335,9 @@ NIL
 
 BUTTON
 774
-202
+291
 859
-237
+326
 Go 1
 go
 NIL
@@ -345,10 +351,10 @@ NIL
 1
 
 PLOT
-861
-102
-1061
-252
+1239
+20
+1439
+170
 OUT
 NIL
 NIL
@@ -363,10 +369,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot count turtles with [out = 1]"
 
 PLOT
-863
-261
-1063
-411
+1239
+175
+1439
+325
 Velocidad Media
 NIL
 NIL
@@ -381,11 +387,11 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot vMedia"
 
 PLOT
-865
-416
-1065
-566
-Panico
+1241
+330
+1441
+480
+Panico Medio
 NIL
 NIL
 0.0
@@ -399,15 +405,145 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot pMedio"
 
 MONITOR
-940
-53
-998
-98
+1372
+107
+1430
+152
 OUT
 count turtles with [out = 1]
 1
 1
 11
+
+PLOT
+1242
+484
+1442
+634
+Fuerza Media
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot fMedio"
+
+TEXTBOX
+780
+17
+1232
+115
+Para los ejemplos del artículo pueden configurarse directamente con los botones siguientes:\n- A: Una sola salida en el medio que todo el mundo puede ver.\n- B: Dos salidas en el medio con visibilidad media.\n- C: Dos salidas en el medio con visibilidad media y baja.\n- D: Dos salidas en las esquinas izquierdas con baja visibilidad.\n- E: Dos salidas en esquinas opuestas con visibilidad media.\n- F: Una salida en el medio con visibilidad completa y obstáculos.
+11
+0.0
+1
+
+BUTTON
+856
+121
+926
+155
+B
+setup-B
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+932
+121
+1002
+155
+C
+setup-C
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+1008
+121
+1078
+155
+D
+setup-D
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+1084
+121
+1154
+155
+E
+setup-E
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+1160
+121
+1230
+155
+F
+setup-F
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+781
+338
+874
+371
+Obstaculos
+draw-obstaculos
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
