@@ -12,7 +12,10 @@
 ; pMedio sera el panico medio
 ; fMedio la fuerza media que recibe una persona
 ; coef que es el factor de conversion de metros a patch de NetLogo (he estado probando con 1 y 2, con 2 parece que se vuelve loco por lo que lo dejo casi siempre en 1)
-globals [m_g m_c m_s m_l m_o T T_M vMedia pMedio fMedio coef]
+; visibility es un vector que contiene las visibilidades de cada salida
+; globals [m_g m_c m_s m_l m_o T T_M vMedia pMedio fMedio coef visibility]
+globals [m_o T T_M vMedia pMedio fMedio coef visibility]
+
 
 ; Algunas propiedades de las personas,
 ; seeExit es si ve o no la salida
@@ -22,10 +25,17 @@ globals [m_g m_c m_s m_l m_o T T_M vMedia pMedio fMedio coef]
 ; p es el panico de una persona
 ; F la fuerza que recibe
 ; out es 1 si la persona ha salido ya, y 0 si no
-turtles-own [seeExit r w v p F out]
+; exit es un vector con la pos de la salida que ve mas cerca
+;turtles-own [seeExit r w v p F out exit]
 
-; Los patches tienen la propiedad tipo, por ahora no se usa, pero la idea seria que habria patches con tipo salida u obstaculo
-patches-own [tipo]
+; g es el vector goal, lo uso para poder calcular la media para los que no ven
+turtles-own [seeExit r w v p F out exit m_g m_c m_s m_l g]
+
+; Los patches tienen las siguientes propiedades,
+; tipo nos dice el tipo del patch, puede ser obstaculo, exit o puerta (las casillas laterales de la exit)
+; vis es la visibilidad de una salida (solo tendran este atributo las salidas para el resto valdra 0)
+; id es un numero que representa a una salida, de esta forma sabremos hacia que salida va cada persona (este atributo solo lo tienen patches tipo exit)
+patches-own [tipo vis id]
 
 ; Inicializamos las constantes que hemos definido. En el articulo se habla de que podriamos hacerlas propiedades de las personas que varien segun su estado, eso podria
 ; ser interesante. Estos valores los he reducido porque con los que nos daba el autor del articulo salian locuras, he mantenido mas o menos la proporcion que el plantea
@@ -42,28 +52,36 @@ to setup-cte
   set coef 1
 end
 
-; Con el setup-A coloco la posicion que define el ejemplo A. Primero hago las paredes y la salida y en el interior coloco a la gente. En este caso empiezan con seeExit 1,
-; porque es una de las hipotesis del ejemplo y out 0 porque estan todos dentro. Esta puesto para que dos personas no puedan aparecer en el mismo patch porque eso es algo
-; que fisicamente es imposible, pero esta comentada la funcion que lo permite.
-to setup-A
-  clear-all
-  set nPersonas 400
-  setup-cte
+; Necesitamos un setup general para poder hacer mas comodo el proceso dependiendo de los ejemplos
+to setup
+  ;setup-cte
   set-default-shape turtles "circle"
-  ask patches with [pxcor = min-pxcor or pxcor = max-pxcor or pycor = min-pycor] [set pcolor red]
-  ask patches with [pycor = max-pycor and pxcor != -1 and pxcor != 0 and pxcor != 1] [set pcolor red]
-  ask patches with [pcolor != red and pycor != max-pycor] [if count turtles < nPersonas [sprout 1 [set seeExit 1 set color white set out 0]]]
-  ;create-turtles nPersonas [setxy (random (2 * max-pxcor - 1) + min-pxcor + 1) (random (2 * max-pycor - 1) + min-pycor + 1) set seeExit 1 set color white set out 0]
+  clear-turtles ; Por si queremos probar con diferentes disposiciones de personas
+  clear-all-plots ; Para reiniciar las graficas
+  create-wall
+  ask patches with [tipo != "obstaculo" and tipo != "exit" and tipo != "puerta"] [if count turtles < nPersonas [sprout 1 [setup-person setup-cte]]]
   ask turtles [setup-person]
   reset-ticks
+end
+
+; create-wall se encarga de crear las paredes y establecer su tipo a obstaculo y crear el hueco de la puerta
+to create-wall
+  ask patches with [(pxcor = max-pxcor or pxcor = min-pxcor or pycor = max-pycor or pycor = min-pycor) and tipo != "exit" and tipo != "puerta"] [set pcolor red]
+  ask patches with [tipo = "exit"] [ask other patches in-radius 1 [set pcolor black set tipo "puerta"]]
+  ask patches with [pcolor = red] [set tipo "obstaculo"]
+  ; La linea de abajo crea un arco verde con el campo de vision de cada salida
+  ask patches with [tipo = "exit" and vis != 1] [let x pxcor let y pycor let a vis ask other patches in-radius ((2 * max (list max-pxcor max-pycor) + 2) * vis)
+    with [tipo = 0] [if (distancexy x y > (((2 * max (list max-pxcor max-pycor) + 2) * a - 1))) [set pcolor green]]]
 end
 
 ; Con setup-person inicializamos los valores de las personas,
 ; El r va entre 0.25 - 0.4
 ; El w entre 40 - 80
 ; La v entre 0.35 - 1.95, como es un vector lo convierto en una lista usando la direccion de la persona
+; El panico es un valor entre 0 y 1
+; Ponemos que aun no han salido (out 0) y que su color sea blanco
 to setup-person
-  ask turtles-here [set r (coef * (random 15 + 25) / 100) set w (random 40 + 40) set v setup-velocidad set p (random 100 / 100)]
+  ask turtles-here [set r (coef * (random 15 + 25) / 100) set w (random 40 + 40) set v setup-velocidad set p (random 100 / 100) set out 0 set color white]
 end
 
 to-report setup-velocidad
@@ -73,6 +91,45 @@ to-report setup-velocidad
   report list c1 c2
 end
 
+; choose-exit nos permite ver cual de las salidas (que ve la persona) esta mas cerca
+to choose-exit
+  let x xcor
+  let y ycor
+  let c list 0 0
+  let d (2 * max (list max-pxcor max-pycor) + 2)
+  let md (2 * max (list max-pxcor max-pycor) + 2)
+  ask patches with [tipo = "exit"] [if (distancexy x y <= (d * vis) and distancexy x y <= d) [set c (list pxcor pycor) set d (distancexy x y)]]
+  if c != list 0 0 [set seeExit 1 set exit c]
+end
+
+; Con el setup-A coloco la posicion que define el ejemplo A. Primero hago las paredes y la salida y en el interior coloco a la gente. En este caso empiezan con seeExit 1,
+; porque es una de las hipotesis del ejemplo y out 0 porque estan todos dentro. Esta puesto para que dos personas no puedan aparecer en el mismo patch porque eso es algo
+; que fisicamente es imposible, pero esta comentada la funcion que lo permite.
+to setup-A
+  clear-all
+  set nPersonas 400
+  ask patch 0 max-pycor [set tipo "exit" set vis 1 set id 1]
+end
+
+to setup-B
+  clear-all
+  set nPersonas 400
+  ask patch 0 max-pycor [set tipo "exit" set vis 0.45 set id 1]
+  ask patch 0 min-pycor [set tipo "exit" set vis 0.45 set id 2]
+end
+
+to setup-C
+end
+
+to setup-D
+end
+
+to setup-E
+end
+
+to setup-F
+end
+
 ; go es la funcion que va a hacer que se muevan las personas. Inicializamos los valores informativos a 0 y luego los dividimos por el numero de personas que no han salido aun,
 ; que son a los que les aplicamos evacuate. Por comodidad movemos a todas las personas que han salido a la casilla de salida para que sea mas visual lo que ocurre
 to go
@@ -80,8 +137,8 @@ to go
   set pMedio 0
   set fMedio 0
   let nP (nPersonas - (count turtles with [out = 1]))
-  ask turtles with [out = 0] [evacuate]
-  ask turtles with [out = 1] [set xcor 0 set ycor max-pycor]
+  ask turtles with [out = 0] [choose-exit evacuate]
+  ask turtles with [out = 1] [set xcor (item 0 exit) set ycor (item 1 exit)]
   set vMedia (vMedia / nP)
   set pMedio (pMedio / nP)
   set fMedio (fMedio / nP)
@@ -91,7 +148,8 @@ end
 ; evacuate es la primera funcion intensa, sigue el proceso descrito en el articulo. Dado que NetLogo no trabaja con vectores, he tenido que improvisar y trabajar con listas. He
 ; intentado seguir la nomenclatura del articulo en la mayor parte de las cosas
 to evacuate
-  let O_g (map [a -> a * m_g] goal)
+  goal
+  let O_g (map [a -> a * m_g] g)
   let O_m (move m_s m_l m_o)
   let O_i (map + O_g O_m)
   ; En la siguiente linea actualizo el valor del panico, que aunque no lo describa en el algoritmo, en la figura 1 si lo describe asi, y entiendo que es necesario.
@@ -108,7 +166,7 @@ to evacuate
   let y (item 1 v + ycor)
   if y < (min-pycor + 1) [set y (min-pycor + 1 + ((- y) mod (2 * max-pycor - 1)))]
   ; Si esta a 0.75 de la salida asumo que ha salido
-  if y > (max-pycor - 1.75) and (x <= 0.75 and x >= -0.75) [set y max-pycor set x 0 set out 1]
+  if (seeExit = 1 and distancexy (item 0 exit) (item 1 exit) < 2) [set y (item 1 exit) set x (item 0 exit) set out 1]
   if y > (max-pycor - 1) and x != 0  [set y (max-pycor - 1 - (y mod (2 * max-pycor - 1)))]
 
   ; Para realizar el movimiento final habia dos opciones "teletransportar" a la persona al sitio correspondiente (seria el setxy que esta comentado) o evitar que una persona pudiera
@@ -122,7 +180,7 @@ to evacuate
   ; Si no he salido de la sala (esto debemos de comprobarlo cada vez que se mueve), ni se choca con una pared (puedeMoverse) o se choca con alguien (puedeIr) y ademas el movimiento que
   ; me queda es mayor que lo que voy a hacer en este paso y el movimiento que me queda no es 0, pues me muevo. Reduzco del movimiento que me queda el paso y si el siguiente paso es mas
   ; grande que lo que me queda, me muevo la diferencia solo para acabar el movimiento.
-  while [(not fuera) and (not puedeMoverse mov2 or puedeIr mov2) and mov > mov2 and mov != 0] [fd mov2 set mov (mov - mov2) if mov < mov2 [set mov2 (mov2 - mov)]]
+  while [(seeExit = 0 or not fuera) and (not puedeMoverse mov2 or puedeIr mov2) and mov > mov2 and mov != 0] [fd mov2 set mov (mov - mov2) if mov < mov2 [set mov2 (mov2 - mov)]]
 
   ; Por ultimo, calculamos las fuerzas que se le aplica a la persona. Para esto vemos cuanta fuerza le ejerce cada persona de su entorno, y esto lo calculamos con la funcion fuerza
   let sumaF 0
@@ -155,7 +213,9 @@ end
 
 ; fuera comprueba en cada paso si hemos salido o no ya.
 to-report fuera
-  ifelse (ycor >= max-pycor - 1.75 and xcor >= -0.75 and xcor <= 0.75) [set out 1 set xcor 0 set ycor max-pycor report true] [report false]
+  let x (item 0 exit)
+  let y (item 1 exit)
+  ifelse (distancexy x y < 2) [set out 1 set xcor x set ycor y report true] [report false]
 end
 
 ; Esta funcion me esta fallando, me devuelve valores anormalmente grandes, no se que ocurre.
@@ -181,18 +241,23 @@ to-report fuerza [radio pos vel]
   report sqrt((item 0 f3) ^ 2 + (item 1 f3) ^ 2)
 end
 
-; La funcion goal no esta acabada, solo esta hecha para el caso A. Esta funcion creo que la vamos a tener que cambiar bastante porque no esta muy
+; La funcion goal no esta acabada, solo esta hecha para si ve ir y si no 0. Esta funcion creo que la vamos a tener que cambiar bastante porque no esta muy
 ; bien explicada en el articulo, la creacion de mapas no parece algo trivial y el del articulo le dedica la figura 2 que no explica mucho.
 ; La idea que yo vi mas comoda y realista seria la imagen que os añado en recurso que se llama goal.
 ; En principio en esta funcion lo que hago es hacer que todos apunten hacia la salida, porque la estan viendo, dependiendo de lo lejos que esten
 ; el modulo del vector que apunta a la salida lo he hecho mas grande, como que la gente del fondo esta mas nerviosa, tiene mas prisa.
-to-report goal
+to goal
   let c list 0 0
-  ifelse seeExit = 1 [facexy 0 max-pycor] [print "Algo Falla"] ; Lo de algo falla es una tonteria
-  (ifelse distancexy 0 max-pycor >= 2 * 2 * max-pycor / 3 [set c (list (2 * dx) (2 * dy))]
-    distancexy 0 max-pycor >= 2 * max-pycor / 3 [set c (list (1.5 * dx) (1.5 * dy))]
-    [set c list dx dy])
-  report c
+  ifelse seeExit = 1 [setup-cte let x (item 0 exit) let y (item 1 exit) facexy x y
+  (ifelse distancexy x y >= 2 * 2 * max-pycor / 3 [set c (list (2 * dx) (2 * dy))]
+    distancexy x y >= 2 * max-pycor / 3 [set c (list (1.5 * dx) (1.5 * dy))]
+      [set c list dx dy])]
+  [let a (list 0 0)
+    let N (count other turtles in-radius (coef * 8 * r) with [g != 0 and g != list 0 0])
+    ifelse (N != 0) [ask other turtles in-radius (coef * 8 * r) with [g != 0 and g != list 0 0] [set a (map + a g)]
+                     ifelse (a != list 0 0) [set c (map [b -> b / N] a)] [set c (list ((random 2 - (xcor / abs(xcor)))) ((random 3 - 1)))]]
+                    [set c (list ((random 2 - (xcor / abs(xcor)))) ((random 3 - 1)))]]
+  set g c
 end
 
 ; La funcion move tambien sigue la estructura del articulo. Creo los valores iniciales con los valores de la persona en cuention para luego no tener
@@ -218,7 +283,7 @@ to-report move[m_1 m_2 m_3]
   ifelse (nV = 1) [set y (list 0 0)] [set y (map [a -> a / (nV - 1)] y)]
   set y (map [a -> a * m_2] (map - y v))
 
-  ask patches with [tipo = "obstaculo"] in-radius ((2 * r + 2)) [set z (map - z (map - (list xcor ycor) pos))]
+  ask patches with [tipo = "obstaculo"] in-radius ((2 * r + 2)) [set z (map - z (map - (list pxcor pycor) pos))]
   set z (map [a -> a * m_3] z)
 
   set v_m (map + (map + w_m x) (map + y z))
@@ -256,9 +321,11 @@ to-report panic
 end
 
 ; Para dibujar los obstaculos ejecutamos una función de manera indefinida (FOREVER) y comprobamos donde hace click el
-; usuario, en esas casillas mata a las tortugas que haya, las pinta de rojo y pone que son de tipo obstaculo.
+; usuario, en esas casillas mata a las tortugas que haya, las pinta de rojo y pone que son de tipo obstaculo. Si da doble
+; click sobre uno lo elimina y para que esto funcione bien tenemos que esperar un poco tras cada click
 to draw-obstaculos
-  if mouse-down? [ask patch mouse-xcor mouse-ycor [ask turtles-here [die] set pcolor red set tipo "obstaculo"]]
+  if mouse-down? [ask patch mouse-xcor mouse-ycor [ask turtles-here [die] ifelse pcolor = red [set pcolor black set tipo 0] [set pcolor red set tipo "obstaculo"]]]
+  wait .05
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -322,7 +389,7 @@ BUTTON
 858
 288
 Go
-if count turtles with [out = 0] < nPersonas / 50 [stop]\ngo
+;if count turtles with [out = 0] < nPersonas / 50 [stop]\nlet c (count turtles with [out = 1])\nrepeat 10 [go]\nif c = count turtles with [out = 1] [stop]
 T
 1
 T
@@ -544,6 +611,41 @@ NIL
 NIL
 NIL
 1
+
+BUTTON
+915
+204
+980
+238
+Setup
+setup
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+PLOT
+1446
+23
+1646
+173
+goal Medio
+NIL
+NIL
+0.0
+10.0
+0.0
+2.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "if count turtles with [g != 0] != 0\n[plot (sum [sqrt((item 0 g) ^ 2 + (item 1 g) ^ 2)] of turtles with [g != 0]) / (count turtles with [g != 0])]"
 
 @#$#@#$#@
 ## WHAT IS IT?
