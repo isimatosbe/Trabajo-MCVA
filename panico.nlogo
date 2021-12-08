@@ -14,7 +14,7 @@
 ; coef que es el factor de conversion de metros a patch de NetLogo (he estado probando con 1 y 2, con 2 parece que se vuelve loco por lo que lo dejo casi siempre en 1)
 ; visibility es un vector que contiene las visibilidades de cada salida
 ; globals [m_g m_c m_s m_l m_o T T_M vMedia pMedio fMedio coef visibility]
-globals [m_o T T_M vMedia pMedio fMedio coef visibility]
+globals [m_o T T_M vMedia pMedio fMedio coef]
 
 
 ; Algunas propiedades de las personas,
@@ -35,7 +35,7 @@ turtles-own [seeExit r w v p F out exit m_g m_c m_s m_l g]
 ; tipo nos dice el tipo del patch, puede ser obstaculo, exit o puerta (las casillas laterales de la exit)
 ; vis es la visibilidad de una salida (solo tendran este atributo las salidas para el resto valdra 0)
 ; id es un numero que representa a una salida, de esta forma sabremos hacia que salida va cada persona (este atributo solo lo tienen patches tipo exit)
-patches-own [tipo vis id]
+patches-own [tipo vis]
 
 ; Inicializamos las constantes que hemos definido. En el articulo se habla de que podriamos hacerlas propiedades de las personas que varien segun su estado, eso podria
 ; ser interesante. Estos valores los he reducido porque con los que nos daba el autor del articulo salian locuras, he mantenido mas o menos la proporcion que el plantea
@@ -59,7 +59,7 @@ to setup
   clear-turtles ; Por si queremos probar con diferentes disposiciones de personas
   clear-all-plots ; Para reiniciar las graficas
   create-wall
-  ask patches with [tipo != "obstaculo" and tipo != "exit" and tipo != "puerta"] [if count turtles < nPersonas [sprout 1 [setup-person setup-cte]]]
+  ask patches with [tipo != "obstaculo" and tipo != "exit" and tipo != "puerta"] [if count turtles < nPersonas [sprout 1 [setup-cte]]]
   ask turtles [setup-person]
   reset-ticks
 end
@@ -70,8 +70,8 @@ to create-wall
   ask patches with [tipo = "exit"] [ask other patches in-radius 1 [set pcolor black set tipo "puerta"]]
   ask patches with [pcolor = red] [set tipo "obstaculo"]
   ; La linea de abajo crea un arco verde con el campo de vision de cada salida
-  ask patches with [tipo = "exit" and vis != 1] [let x pxcor let y pycor let a vis ask other patches in-radius ((2 * max (list max-pxcor max-pycor) + 2) * vis)
-    with [tipo = 0] [if (distancexy x y > (((2 * max (list max-pxcor max-pycor) + 2) * a - 1))) [set pcolor green]]]
+  ;ask patches with [tipo = "exit" and vis != 1] [let x pxcor let y pycor let a vis ask other patches in-radius ((2 * max (list max-pxcor max-pycor) + 2) * vis)
+    ;with [tipo = 0] [if (distancexy x y > (((2 * max (list max-pxcor max-pycor) + 2) * a - 1))) [set pcolor green]]]
 end
 
 ; Con setup-person inicializamos los valores de las personas,
@@ -81,7 +81,13 @@ end
 ; El panico es un valor entre 0 y 1
 ; Ponemos que aun no han salido (out 0) y que su color sea blanco
 to setup-person
-  ask turtles-here [set r (coef * (random 15 + 25) / 100) set w (random 40 + 40) set v setup-velocidad set p (random 100 / 100) set out 0 set color white]
+  ;ask turtles-here [set r (coef * (random 15 + 25) / 100) set w (random 40 + 40) set v setup-velocidad set p (random 100 / 100) set out 0 set color white]
+  set r (coef * (random 15 + 25) / 100)
+  set w (random 40 + 40)
+  set v setup-velocidad
+  set p (random 100 / 100)
+  set out 0
+  set color white
 end
 
 to-report setup-velocidad
@@ -108,14 +114,18 @@ end
 to setup-A
   clear-all
   set nPersonas 400
-  ask patch 0 max-pycor [set tipo "exit" set vis 1 set id 1]
+  set nSalidas 1
+  ask patch 0 max-pycor [set tipo "exit" set vis 1]
+  set visibility (word (list 1))
 end
 
 to setup-B
   clear-all
   set nPersonas 400
-  ask patch 0 max-pycor [set tipo "exit" set vis 0.45 set id 1]
-  ask patch 0 min-pycor [set tipo "exit" set vis 0.45 set id 2]
+  set nSalidas 2
+  ask patch 0 max-pycor [set tipo "exit" set vis 0.45]
+  ask patch 0 min-pycor [set tipo "exit" set vis 0.45]
+  set visibility (word (list 0.45 0.45))
 end
 
 to setup-C
@@ -310,12 +320,13 @@ to-report panic
   let d2 ((sqrt((item 0 vi) ^ 2 + (item 1 vi) ^ 2) - module) / (coef * 1.95))
 
   ;d3 depende de las fuerzas
-  let O (count turtles in-radius (coef * 8 * r) with [out = 0 and F >= T])
-  let d3 O / (count turtles with [out = 0])
+  ;let O (count turtles in-radius (coef * 8 * r) with [out = 0 and F >= T])
+  ;let d3 O / (count turtles with [out = 0])
+  let d3 0
 
   let d4 (coef * 0.35 - module) / (coef * 1.95)
 
-  let xi (d1 + d2 + d3 + d4) / 4
+  let xi (d1 + d2 + d3 + d4) / 3
   let p_i (p + xi) / 2
   report p_i
 end
@@ -329,10 +340,10 @@ to draw-obstaculos
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-13
-13
-763
-708
+7
+7
+757
+702
 -1
 -1
 14.0
@@ -356,10 +367,10 @@ ticks
 30.0
 
 BUTTON
-780
-121
-850
+769
 155
+839
+189
 A
 setup-A
 NIL
@@ -373,10 +384,10 @@ NIL
 1
 
 INPUTBOX
-774
-188
-856
-250
+769
+195
+839
+255
 nPersonas
 400.0
 1
@@ -384,12 +395,12 @@ nPersonas
 Number
 
 BUTTON
-774
-253
-858
-288
+1073
+327
+1219
+361
 Go
-;if count turtles with [out = 0] < nPersonas / 50 [stop]\nlet c (count turtles with [out = 1])\nrepeat 10 [go]\nif c = count turtles with [out = 1] [stop]
+;if count turtles with [out = 0] < nPersonas / 50 [stop]\nlet c (count turtles with [out = 1])\nrepeat 25 [go]\nif c = count turtles with [out = 1] [stop]
 T
 1
 T
@@ -401,10 +412,10 @@ NIL
 1
 
 BUTTON
-774
-291
-859
-326
+921
+327
+1068
+361
 Go 1
 go
 NIL
@@ -418,11 +429,11 @@ NIL
 1
 
 PLOT
-1239
-20
-1439
-170
-OUT
+1231
+12
+1459
+180
+Personas Evacuadas
 NIL
 NIL
 0.0
@@ -431,15 +442,15 @@ NIL
 10.0
 true
 false
-"" "if (count turtles with [out = 1]) >= (count turtles - 2) [stop]"
+"" ";if (count turtles with [out = 1]) >= (count turtles - 2) [stop]"
 PENS
 "default" 1.0 0 -16777216 true "" "plot count turtles with [out = 1]"
 
 PLOT
-1239
-175
-1439
-325
+1231
+186
+1459
+354
 Velocidad Media
 NIL
 NIL
@@ -454,10 +465,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot vMedia"
 
 PLOT
-1241
-330
-1441
-480
+1231
+360
+1459
+528
 Panico Medio
 NIL
 NIL
@@ -472,22 +483,22 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot pMedio"
 
 MONITOR
-1372
-107
-1430
-152
-OUT
+1379
+116
+1449
+161
+nEvacuados
 count turtles with [out = 1]
 1
 1
 11
 
 PLOT
-1242
-484
-1442
-634
-Fuerza Media
+1231
+534
+1459
+702
+Disconformidad Media
 NIL
 NIL
 0.0
@@ -501,20 +512,20 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot fMedio"
 
 TEXTBOX
-780
-17
-1232
-115
-Para los ejemplos del artículo pueden configurarse directamente con los botones siguientes:\n- A: Una sola salida en el medio que todo el mundo puede ver.\n- B: Dos salidas en el medio con visibilidad media.\n- C: Dos salidas en el medio con visibilidad media y baja.\n- D: Dos salidas en las esquinas izquierdas con baja visibilidad.\n- E: Dos salidas en esquinas opuestas con visibilidad media.\n- F: Una salida en el medio con visibilidad completa y obstáculos.
-11
+769
+12
+1219
+149
+Los ejemplos del artículo pueden configurarse directamente con los siguientes botones:\n- A: Una sola salida en el medio que todo el mundo puede ver.\n- B: Dos salidas en el medio con visibilidad media.\n- C: Dos salidas en el medio con visibilidad media y baja.\n- D: Dos salidas en las esquinas izquierdas con baja visibilidad.\n- E: Dos salidas en esquinas opuestas con visibilidad media.\n- F: Una salida en el medio con visibilidad completa y obstáculos.
+14
 0.0
 1
 
 BUTTON
-856
-121
-926
+845
 155
+915
+189
 B
 setup-B
 NIL
@@ -528,10 +539,10 @@ NIL
 1
 
 BUTTON
-932
-121
-1002
+921
 155
+991
+189
 C
 setup-C
 NIL
@@ -545,10 +556,10 @@ NIL
 1
 
 BUTTON
-1008
-121
-1078
+997
 155
+1067
+189
 D
 setup-D
 NIL
@@ -562,10 +573,10 @@ NIL
 1
 
 BUTTON
-1084
-121
-1154
+1073
 155
+1143
+189
 E
 setup-E
 NIL
@@ -579,10 +590,10 @@ NIL
 1
 
 BUTTON
-1160
-121
-1230
+1149
 155
+1219
+189
 F
 setup-F
 NIL
@@ -596,11 +607,11 @@ NIL
 1
 
 BUTTON
-781
-338
-874
-371
-Obstaculos
+769
+261
+915
+321
+Obstaculos Manual
 draw-obstaculos
 T
 1
@@ -613,10 +624,10 @@ NIL
 1
 
 BUTTON
+769
+327
 915
-204
-980
-238
+361
 Setup
 setup
 NIL
@@ -629,11 +640,77 @@ NIL
 NIL
 1
 
+INPUTBOX
+921
+195
+991
+255
+nSalidas
+2.0
+1
+0
+Number
+
+INPUTBOX
+997
+195
+1219
+255
+visibility
+[0.45 0.45]
+1
+0
+String
+
+INPUTBOX
+921
+261
+991
+321
+nObstaculos
+0.0
+1
+0
+Number
+
+INPUTBOX
+997
+261
+1067
+321
+sObstaculos
+0.0
+1
+0
+Number
+
+INPUTBOX
+845
+195
+915
+255
+pLider
+0.0
+1
+0
+Number
+
+SWITCH
+1073
+274
+1219
+307
+setupManual
+setupManual
+1
+1
+-1000
+
 PLOT
-1446
-23
-1646
-173
+1472
+13
+1672
+163
 goal Medio
 NIL
 NIL
