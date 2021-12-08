@@ -58,6 +58,7 @@ to setup
   set-default-shape turtles "circle"
   clear-turtles ; Por si queremos probar con diferentes disposiciones de personas
   clear-all-plots ; Para reiniciar las graficas
+  if setupManual [setup-manual]
   create-wall
   ask patches with [tipo != "obstaculo" and tipo != "exit" and tipo != "puerta"] [if count turtles < nPersonas [sprout 1 [setup-cte]]]
   ask turtles [setup-person]
@@ -70,8 +71,8 @@ to create-wall
   ask patches with [tipo = "exit"] [ask other patches in-radius 1 [set pcolor black set tipo "puerta"]]
   ask patches with [pcolor = red] [set tipo "obstaculo"]
   ; La linea de abajo crea un arco verde con el campo de vision de cada salida
-  ;ask patches with [tipo = "exit" and vis != 1] [let x pxcor let y pycor let a vis ask other patches in-radius ((2 * max (list max-pxcor max-pycor) + 2) * vis)
-    ;with [tipo = 0] [if (distancexy x y > (((2 * max (list max-pxcor max-pycor) + 2) * a - 1))) [set pcolor green]]]
+  ; ask patches with [tipo = "exit" and vis != 1] [let x pxcor let y pycor let a vis ask other patches in-radius ((2 * max (list max-pxcor max-pycor) + 2) * vis)
+    ; with [tipo = 0] [if (distancexy x y > (((2 * max (list max-pxcor max-pycor) + 2) * a - 1))) [set pcolor green]]]
 end
 
 ; Con setup-person inicializamos los valores de las personas,
@@ -129,15 +130,44 @@ to setup-B
 end
 
 to setup-C
+  clear-all
+  set nPersonas 400
+  set nSalidas 2
+  ask patch 0 max-pycor [set tipo "exit" set vis 0.45]
+  ask patch 0 min-pycor [set tipo "exit" set vis 0.15]
+  set visibility (word (list 0.45 0.15))
 end
 
 to setup-D
+  clear-all
+  set nPersonas 400
+  set nSalidas 2
+  ask patch min-pxcor max-pycor [set tipo "exit" set vis 0.15]
+  ask patch min-pxcor min-pycor [set tipo "exit" set vis 0.15]
+  set visibility (word (list 0.15 0.15))
 end
 
 to setup-E
+  clear-all
+  set nPersonas 400
+  set nSalidas 2
+  ask patch min-pxcor max-pycor [set tipo "exit" set vis 0.6]
+  ask patch max-pxcor min-pycor [set tipo "exit" set vis 0.6]
+  set visibility (word (list 0.6 0.6))
 end
 
 to setup-F
+  clear-all
+  set nPersonas 400
+  set nSalidas 1
+  ask patch 0 max-pycor [set tipo "exit" set vis 1]
+  set visibility (word (list 1))
+  ask patches with [pxcor = ceiling (min-pxcor / 3) and pycor > (4 * min-pycor / 5) and pycor < (2 * max-pycor / 5)] [set tipo "obstaculo" set pcolor red]
+  ask patches with [pxcor > ceiling (min-pxcor / 3) and pxcor = -1 * pycor + 7 and pxcor < ceiling (2 * max-pxcor / 3)] [set tipo "obstaculo" set pcolor red]
+end
+
+to setup-manual
+  clear-all
 end
 
 ; go es la funcion que va a hacer que se muevan las personas. Inicializamos los valores informativos a 0 y luego los dividimos por el numero de personas que no han salido aun,
@@ -176,7 +206,7 @@ to evacuate
   let y (item 1 v + ycor)
   if y < (min-pycor + 1) [set y (min-pycor + 1 + ((- y) mod (2 * max-pycor - 1)))]
   ; Si esta a 0.75 de la salida asumo que ha salido
-  if (seeExit = 1 and distancexy (item 0 exit) (item 1 exit) < 2) [set y (item 1 exit) set x (item 0 exit) set out 1]
+  if (seeExit = 1 and distancexy (item 0 exit) (item 1 exit) < 2.5) [set y (item 1 exit) set x (item 0 exit) set out 1]
   if y > (max-pycor - 1) and x != 0  [set y (max-pycor - 1 - (y mod (2 * max-pycor - 1)))]
 
   ; Para realizar el movimiento final habia dos opciones "teletransportar" a la persona al sitio correspondiente (seria el setxy que esta comentado) o evitar que una persona pudiera
@@ -225,7 +255,7 @@ end
 to-report fuera
   let x (item 0 exit)
   let y (item 1 exit)
-  ifelse (distancexy x y < 2) [set out 1 set xcor x set ycor y report true] [report false]
+  ifelse (distancexy x y < 2.5) [set out 1 set xcor x set ycor y report true] [report false]
 end
 
 ; Esta funcion me esta fallando, me devuelve valores anormalmente grandes, no se que ocurre.
@@ -266,7 +296,7 @@ to goal
     let N (count other turtles in-radius (coef * 8 * r) with [g != 0 and g != list 0 0])
     ifelse (N != 0) [ask other turtles in-radius (coef * 8 * r) with [g != 0 and g != list 0 0] [set a (map + a g)]
                      ifelse (a != list 0 0) [set c (map [b -> b / N] a)] [set c (list ((random 2 - (xcor / abs(xcor)))) ((random 3 - 1)))]]
-                    [set c (list ((random 2 - (xcor / abs(xcor)))) ((random 3 - 1)))]]
+                    [ifelse (xcor = 0) [set c list ((random 3 - 1) / 1.5) ((random 3 - 1) / 1.5)] [set c (list ((random 2 - (xcor / abs(xcor))) / 1.5) ((random 3 - 1) / 1.5))]]]
   set g c
 end
 
@@ -690,7 +720,7 @@ INPUTBOX
 915
 255
 pLider
-0.0
+5.0
 1
 0
 Number
