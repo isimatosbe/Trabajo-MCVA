@@ -60,6 +60,8 @@ to setup
   clear-all-plots ; Para reiniciar las graficas
   if setupManual [setup-manual]
   create-wall
+  ask patches with [tipo = "obstaculo" and pxcor != min-pxcor and pxcor != max-pxcor and pycor != max-pycor and pycor != min-pycor] [set tipo 0 set pcolor black]
+  repeat nObstaculos [create-obstaculo sObstaculos]
   ask patches with [tipo != "obstaculo" and tipo != "exit" and tipo != "puerta"] [if count turtles < nPersonas [sprout 1 [setup-cte]]]
   ask turtles [setup-person]
   reset-ticks
@@ -67,12 +69,18 @@ end
 
 ; create-wall se encarga de crear las paredes y establecer su tipo a obstaculo y crear el hueco de la puerta
 to create-wall
+  ask patches with [tipo = "exit"] [ask other patches in-radius 1 with [tipo != "exit"] [set pcolor black set tipo "puerta"]]
   ask patches with [(pxcor = max-pxcor or pxcor = min-pxcor or pycor = max-pycor or pycor = min-pycor) and tipo != "exit" and tipo != "puerta"] [set pcolor red]
-  ask patches with [tipo = "exit"] [ask other patches in-radius 1 [set pcolor black set tipo "puerta"]]
   ask patches with [pcolor = red] [set tipo "obstaculo"]
   ; La linea de abajo crea un arco verde con el campo de vision de cada salida
-  ; ask patches with [tipo = "exit" and vis != 1] [let x pxcor let y pycor let a vis ask other patches in-radius ((2 * max (list max-pxcor max-pycor) + 2) * vis)
-    ; with [tipo = 0] [if (distancexy x y > (((2 * max (list max-pxcor max-pycor) + 2) * a - 1))) [set pcolor green]]]
+  ask patches with [tipo = "exit" and vis != 1] [let x pxcor let y pycor let a vis ask other patches in-radius ((2 * max (list max-pxcor max-pycor) + 2) * vis)
+    with [tipo = 0] [if (distancexy x y > (((2 * max (list max-pxcor max-pycor) + 2) * a - 1))) [set pcolor green]]]
+end
+
+to create-obstaculo [s]
+  let x random-xcor
+  let y random-ycor
+  ask patches with [pxcor >= x - s and pxcor <= x + s and pycor >= y - s and pycor <= y + s] [set tipo "obstaculo" set pcolor red]
 end
 
 ; Con setup-person inicializamos los valores de las personas,
@@ -114,6 +122,7 @@ end
 ; que fisicamente es imposible, pero esta comentada la funcion que lo permite.
 to setup-A
   clear-all
+  set setupManual false
   set nPersonas 400
   set nSalidas 1
   ask patch 0 max-pycor [set tipo "exit" set vis 1]
@@ -122,6 +131,7 @@ end
 
 to setup-B
   clear-all
+  set setupManual false
   set nPersonas 400
   set nSalidas 2
   ask patch 0 max-pycor [set tipo "exit" set vis 0.45]
@@ -131,6 +141,7 @@ end
 
 to setup-C
   clear-all
+  set setupManual false
   set nPersonas 400
   set nSalidas 2
   ask patch 0 max-pycor [set tipo "exit" set vis 0.45]
@@ -140,15 +151,17 @@ end
 
 to setup-D
   clear-all
+  set setupManual false
   set nPersonas 400
   set nSalidas 2
-  ask patch min-pxcor max-pycor [set tipo "exit" set vis 0.15]
-  ask patch min-pxcor min-pycor [set tipo "exit" set vis 0.15]
-  set visibility (word (list 0.15 0.15))
+  ask patch min-pxcor max-pycor [set tipo "exit" set vis 0.25]
+  ask patch min-pxcor min-pycor [set tipo "exit" set vis 0.25]
+  set visibility (word (list 0.25 0.25))
 end
 
 to setup-E
   clear-all
+  set setupManual false
   set nPersonas 400
   set nSalidas 2
   ask patch min-pxcor max-pycor [set tipo "exit" set vis 0.6]
@@ -158,6 +171,7 @@ end
 
 to setup-F
   clear-all
+  set setupManual false
   set nPersonas 400
   set nSalidas 1
   ask patch 0 max-pycor [set tipo "exit" set vis 1]
@@ -168,6 +182,13 @@ end
 
 to setup-manual
   clear-all
+  let i 0
+  let x 0
+  let y 0
+  let ver (read-from-string visibility)
+  repeat nSalidas [let mx (random (2 * max-pxcor + 1) - max-pxcor) let my (random (2 * max-pycor + 1) - max-pycor) let a (random 4)
+    (ifelse (a = 0) [set x mx set y max-pycor] (a = 2) [set x mx set y min-pycor] (a = 1) [set x max-pxcor set y my] [set x min-pxcor set y my])
+    ask patch x y [set tipo "exit" set vis (item i ver)] set i (i + 1)]
 end
 
 ; go es la funcion que va a hacer que se muevan las personas. Inicializamos los valores informativos a 0 y luego los dividimos por el numero de personas que no han salido aun,
@@ -295,8 +316,10 @@ to goal
   [let a (list 0 0)
     let N (count other turtles in-radius (coef * 8 * r) with [g != 0 and g != list 0 0])
     ifelse (N != 0) [ask other turtles in-radius (coef * 8 * r) with [g != 0 and g != list 0 0] [set a (map + a g)]
-                     ifelse (a != list 0 0) [set c (map [b -> b / N] a)] [set c (list ((random 2 - (xcor / abs(xcor)))) ((random 3 - 1)))]]
-                    [ifelse (xcor = 0) [set c list ((random 3 - 1) / 1.5) ((random 3 - 1) / 1.5)] [set c (list ((random 2 - (xcor / abs(xcor))) / 1.5) ((random 3 - 1) / 1.5))]]]
+      ifelse (a != list 0 0) [set c (map [b -> b / N] a)] [ifelse (xcor = 0) [set c list ((random 3 - 1) / 1.5) ((random 3 - 1) / 1.5)] [set c (list ((random 2 - (xcor / abs(xcor))) / 1.5) ((random 3 - 1) / 1.5))]]]
+                    ;[ifelse (xcor = 0) [set c list ((random 3 - 1) / 1.5) ((random 3 - 1) / 1.5)] [set c (list ((random 2 - (xcor / abs(xcor))) / 1.5) ((random 3 - 1) / 1.5))]]]
+                    [let b (random 6) (ifelse (b = 1) [facexy max-pxcor ycor] (b = 2) [facexy min-pxcor ycor] (b = 3) [facexy xcor max-pycor] (b = 4) [facexy xcor min-pycor] [facexy xcor ycor])
+                     set c (list dx dy)]]
   set g c
 end
 
@@ -439,7 +462,7 @@ NIL
 NIL
 NIL
 NIL
-1
+0
 
 BUTTON
 921
@@ -456,7 +479,7 @@ NIL
 NIL
 NIL
 NIL
-1
+0
 
 PLOT
 1231
@@ -676,7 +699,7 @@ INPUTBOX
 991
 255
 nSalidas
-2.0
+1.0
 1
 0
 Number
@@ -687,7 +710,7 @@ INPUTBOX
 1219
 255
 visibility
-[0.45 0.45]
+[1]
 1
 0
 String
@@ -698,7 +721,7 @@ INPUTBOX
 991
 321
 nObstaculos
-0.0
+1.0
 1
 0
 Number
@@ -709,7 +732,7 @@ INPUTBOX
 1067
 321
 sObstaculos
-0.0
+2.0
 1
 0
 Number
