@@ -31,6 +31,8 @@ globals [
   B ; Longitud de caída
   k1 ; Constante de fuerza del cuerpo
   k2 ; Constante de fuerza de fricción y deslizamiento
+  v_media ; Velocidad media
+  g_medio ; Goal medio
 ]
 
 patches-own [ tipo ] ; Para indicar si el patch es un obstáculo o no
@@ -43,7 +45,42 @@ puertas-own [
   visibilidad ; Define la distancia a la que los agentes ven la puerta
 ]
 
-to setup-puertas
+to setup-A
+  create-puertas 1 [
+    set hidden? true
+    set visibilidad L_max ; Definimos la visibilidad como la mayor distancia del escenario
+    set centro list 0 max-pycor
+    set radio 1
+    set cor_x []
+    set cor_y []
+    foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
+  ]
+  setup-patches
+end
+
+to setup-B
+  create-puertas 1 [
+    set hidden? true
+    set visibilidad L_max / 2 ; Definimos la visibilidad como la mayor distancia del escenario
+    set centro list 0 max-pycor
+    set radio 1
+    set cor_x []
+    set cor_y []
+    foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
+  ]
+  create-puertas 1 [
+    set hidden? true
+    set visibilidad L_max / 2 ; Definimos la visibilidad como la mayor distancia del escenario
+    set centro list 0 min-pycor
+    set radio 1
+    set cor_x []
+    set cor_y []
+    foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
+  ]
+  setup-patches
+end
+
+to setup-C
   create-puertas 1 [
     set hidden? true
     set visibilidad L_max / 2 ; Definimos la visibilidad como la mayor distancia del escenario
@@ -62,6 +99,66 @@ to setup-puertas
     set cor_y []
     foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
   ]
+  setup-patches
+end
+
+to setup-D
+  create-puertas 1 [
+    set hidden? true
+    set visibilidad L_max / 6 ; Definimos la visibilidad como la mayor distancia del escenario
+    set centro list min-pxcor max-pycor
+    set radio 1
+    set cor_x []
+    set cor_y []
+    foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
+  ]
+  create-puertas 1 [
+    set hidden? true
+    set visibilidad L_max / 6 ; Definimos la visibilidad como la mayor distancia del escenario
+    set centro list min-pxcor min-pycor
+    set radio 1
+    set cor_x []
+    set cor_y []
+    foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
+  ]
+  setup-patches
+end
+
+to setup-E
+  create-puertas 1 [
+    set hidden? true
+    set visibilidad L_max / 2 ; Definimos la visibilidad como la mayor distancia del escenario
+    set centro list min-pxcor max-pycor
+    set radio 1
+    set cor_x []
+    set cor_y []
+    foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
+  ]
+  create-puertas 1 [
+    set hidden? true
+    set visibilidad L_max / 2 ; Definimos la visibilidad como la mayor distancia del escenario
+    set centro list max-pxcor min-pycor
+    set radio 1
+    set cor_x []
+    set cor_y []
+    foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
+  ]
+  setup-patches
+end
+
+to setup-F
+  create-puertas 1 [
+    set hidden? true
+    set visibilidad L_max ; Definimos la visibilidad como la mayor distancia del escenario
+    set centro list 0 max-pycor
+    set radio 1
+    set cor_x []
+    set cor_y []
+    foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
+  ]
+  ask patches with [pxcor = ceiling (min-pxcor / 3) and pycor > (4 * min-pycor / 5) and pycor < (2 * max-pycor / 5)] [set tipo "obstaculo" set pcolor red]
+  ask patches with [pxcor > ceiling (min-pxcor / 3) and pxcor = -1 * pycor + 7 and pxcor < ceiling (2 * max-pxcor / 3)] [set tipo "obstaculo" set pcolor red]
+  setup-patches
 end
 
 to setup-patches
@@ -128,8 +225,8 @@ to setup
   set coef 1
   setup-personas
   setup-parameters
-  setup-puertas
-  setup-patches
+  ;setup-puertas
+  ;setup-patches
   reset-ticks
 end
 
@@ -295,6 +392,7 @@ to evacuate
 
     ; Calculo la velocidad asociada a llegar al objetivo
     set v_g goal
+    set g_medio (g_medio + (modulo v_g))
     set v_g list ((first v_g) * m_g) ((last v_g) * m_g)
 
     ; Calculo la velocidad por la interacción con otros agentes
@@ -317,9 +415,12 @@ to evacuate
 
     ; Actualizo la velocidad
     set v (map + (map [ i -> i * 0.5 ] v_nueva) (map [ i -> i * (1 - 0.5) ] v))
+    set v_media (v_media + (modulo v))
 
 
   ]
+  set v_media (v_media / count turtles)
+  set g_medio (g_medio / count turtles)
   tick
 end
 @#$#@#$#@
@@ -356,7 +457,7 @@ INPUTBOX
 161
 71
 numero_personas
-200.0
+400.0
 1
 0
 Number
@@ -383,8 +484,8 @@ BUTTON
 84
 165
 117
-NIL
 evacuate
+let c (count turtles)\nrepeat 25 [evacuate]\nif (count turtles = c) [stop]
 T
 1
 T
@@ -394,6 +495,162 @@ NIL
 NIL
 NIL
 1
+
+BUTTON
+8
+120
+78
+153
+A
+setup-A
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+82
+119
+165
+152
+B
+setup-B
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+8
+156
+78
+189
+C
+setup-C
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+83
+155
+165
+188
+D
+setup-D
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+8
+192
+77
+225
+E
+setup-E
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+82
+191
+165
+224
+F
+setup-F
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+PLOT
+673
+15
+873
+165
+OUT
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot (numero_personas - count turtles)"
+
+PLOT
+679
+181
+879
+331
+vMedia
+NIL
+NIL
+0.0
+10.0
+0.0
+2.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot v_media"
+
+PLOT
+685
+349
+885
+499
+gMedio
+NIL
+NIL
+0.0
+10.0
+0.0
+2.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot g_medio"
 
 @#$#@#$#@
 ## WHAT IS IT?
