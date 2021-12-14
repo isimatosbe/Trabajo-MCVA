@@ -111,6 +111,7 @@ to setup-D
     set cor_x []
     set cor_y []
     foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
+    foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro) set cor_y insert-item 0 cor_y (item 1 centro + i)]
   ]
   create-puertas 1 [
     set hidden? true
@@ -120,6 +121,7 @@ to setup-D
     set cor_x []
     set cor_y []
     foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
+    foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro) set cor_y insert-item 0 cor_y (item 1 centro + i)]
   ]
   setup-patches
 end
@@ -133,6 +135,7 @@ to setup-E
     set cor_x []
     set cor_y []
     foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
+    foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro) set cor_y insert-item 0 cor_y (item 1 centro + i)]
   ]
   create-puertas 1 [
     set hidden? true
@@ -142,6 +145,7 @@ to setup-E
     set cor_x []
     set cor_y []
     foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
+    foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro) set cor_y insert-item 0 cor_y (item 1 centro + i)]
   ]
   setup-patches
 end
@@ -419,8 +423,8 @@ to evacuate
 
 
   ]
-  set v_media (v_media / count turtles)
-  set g_medio (g_medio / count turtles)
+  set v_media (v_media / count personas)
+  set g_medio (g_medio / count personas)
   tick
 end
 @#$#@#$#@
@@ -457,7 +461,7 @@ INPUTBOX
 161
 71
 numero_personas
-400.0
+200.0
 1
 0
 Number
