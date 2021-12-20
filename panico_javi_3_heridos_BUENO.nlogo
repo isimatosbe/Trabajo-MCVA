@@ -5,8 +5,11 @@ personas-own [
   r ; Raio: entre 0,25 y 0,4 m
   w ; Peso
   v ; Velocidad
-  v_goal ; Módulo del término de la velocidad que decimos que tienen los agentes en dirección a la puerta
+  v_nueva ; velocidad nueva
+  v_goal_mod ; Módulo del término de la velocidad que decimos que tienen los agentes en dirección a la puerta
+  v_goal ; Término de la velocidad que decimos que tienen los agentes en dirección a la puerta
   p ; Posición
+  disconformidad ; Disconformidad que sufren los agentes debido a las fuerzas
   panic ; Pánico: Entre 0 y 1
   l ; Distancia máxima aceptable a la puerta de salida
   d_a ; Distancia mínima a la cuál un agente se separa de otro
@@ -17,8 +20,39 @@ personas-own [
   m_s ; Factor asociado con el comportamiento de separación del agente. Se puede incrementar este factor en las zonas cercanas a las puertas de salida.
   m_l ; Factor asociado con el comportamiento de alineación del agente. Se puede incrementar cuando se necesita coordinación entre agentes como en las colas que se forman en zonas estrechas.
   m_o ; factor asociado con el comportamiento de evitación de obstáculos del agente. Se puede incrementar cuando existen muchos obstáculos
+  puerta_vista
+  ; Componentes de pánico
+  d1
+  d2
+  d3
+  d4
+  ; Componentes normalizadas
+  d1_norm
+  d2_norm
+  d3_norm
+  d4_norm
+  ; Componentes máximas y mínimas
+  d1_max
+  d2_max
+  d3_max
+  d4_max
+  d1_min
+  d2_min
+  d3_min
+  d4_min
+  ; Componentes de la fuerza
+  ; Componentes de la función move
+  w_pos_media
+  x_separation
+  y_aligment
+  z_obstacles
+  modulo_fuerza_total
+  aceleracion_recibe
+  aceleracion
+  centro_puerta
+  herido
+  ;panico_global
 ]
-
 
 globals [
   T ; Fuerza límite que recibe una persona para no poder moverse N
@@ -33,6 +67,12 @@ globals [
   k2 ; Constante de fuerza de fricción y deslizamiento
   v_media ; Velocidad media
   g_medio ; Goal medio
+  personas_aterradas; personas con pánico = 1
+  personas_asustadas; personas con pánico > 0.5
+  para
+  milisegundo ; variable para considerar cada tick como un milisegundo
+  escenario ; Variable para seleccionar el escenario
+  panico_global
 ]
 
 patches-own [ tipo ] ; Para indicar si el patch es un obstáculo o no
@@ -46,6 +86,7 @@ puertas-own [
 ]
 
 to setup-A
+  print "Escenario A cargado"
   create-puertas 1 [
     set hidden? true
     set visibilidad L_max ; Definimos la visibilidad como la mayor distancia del escenario
@@ -59,6 +100,7 @@ to setup-A
 end
 
 to setup-B
+  print "Escenario B cargado"
   create-puertas 1 [
     set hidden? true
     set visibilidad L_max / 2 ; Definimos la visibilidad como la mayor distancia del escenario
@@ -81,6 +123,7 @@ to setup-B
 end
 
 to setup-C
+  print "Escenario C cargado"
   create-puertas 1 [
     set hidden? true
     set visibilidad L_max / 2 ; Definimos la visibilidad como la mayor distancia del escenario
@@ -103,6 +146,7 @@ to setup-C
 end
 
 to setup-D
+  print "Escenario D cargado"
   create-puertas 1 [
     set hidden? true
     set visibilidad L_max / 6 ; Definimos la visibilidad como la mayor distancia del escenario
@@ -127,6 +171,7 @@ to setup-D
 end
 
 to setup-E
+  print "Escenario E cargado"
   create-puertas 1 [
     set hidden? true
     set visibilidad L_max / 2 ; Definimos la visibilidad como la mayor distancia del escenario
@@ -151,6 +196,7 @@ to setup-E
 end
 
 to setup-F
+  print "Escenario F cargado"
   create-puertas 1 [
     set hidden? true
     set visibilidad L_max ; Definimos la visibilidad como la mayor distancia del escenario
@@ -181,22 +227,56 @@ to setup-personas
   set-default-shape personas "circle"
   create-personas numero_personas
   ask personas [
+    let clase "libre"
     set color white
     let x_cor random (max-pxcor - min-pxcor - 1) + min-pxcor + 1
     let y_cor random (max-pycor - min-pycor - 1) + min-pycor + 1
-    while [any? personas with [xcor = x_cor and ycor = y_cor] ]
+    ask patches with [pxcor = x_cor and pycor = y_cor] [set clase tipo]
+    while [(any? personas with [xcor = x_cor and ycor = y_cor]) or clase = "obstaculo"]
     [
     set x_cor random (max-pxcor - min-pxcor - 1) + min-pxcor + 1
     set y_cor random (max-pycor - min-pycor - 1) + min-pycor + 1
+    ask patches with [pxcor = x_cor and pycor = y_cor] [set clase tipo]
     ]
     set xcor x_cor
     set ycor y_cor
     set p list x_cor y_cor
+    set puerta_vista 0
+  ]
+  ask personas [
+    set r (random 15 + 25) / 100
+    set l (10 * r) / coef
+    set d_a (2 * r + 2) / coef ;+ 2
+    set d_c (8 * r); (8 * r) / coef
+    set d_l (4 * r); (4 * r) / coef
+    set m_g 6.5 / 10
+    set m_c 0;1.5 / 10
+    set m_s 0;2.5
+    set m_l 0;1.5 / 10
+    set m_o 0;3.5
+    set w (random-normal 25 15 + 40)
+    set v list v_min v_min
+    set v_goal_mod random-normal (v_min + ((v_max - v_min) / 2)) (((v_max - v_min) / 2) * 0.4)
+    set panic 0
+    set size 2 * r
+    set d1_min (- l / L_max)
+    set d1_max (1 + d1_min)
+    set d2_max 1
+    set d2_min -1
+    set d4_max (v_min / v_max)
+    set d4_min (v_min - v_max) / v_max
   ]
 end
 
-to setup-parameters
-  set T 750
+to reset
+  clear-all
+end
+to setup
+  set coef 1
+  set para 0
+  set milisegundo 10
+  set L_max sqrt ( (2 * max-pxcor + 1 ) ^ 2 + (2 * max-pycor + 1) ^ 2 ) ; Máxima distancia del escenario
+  set T 1600
   set v_max 1.95
   set v_min 0.35
   set A 2000
@@ -204,33 +284,13 @@ to setup-parameters
   set k1 12000
   set k2 24000
   set L_max sqrt ( (2 * max-pxcor + 1 ) ^ 2 + (2 * max-pycor + 1) ^ 2 ) ; Máxima distancia del escenario
-  ;print L_max
-  ask personas [
-    set r (random 15 + 25) / 100
-    set l (10 * r) / coef
-    set d_a (2 * r + 2) / coef
-    set d_c (8 * r) / coef
-    set d_l (4 * r) / coef
-    set m_g 6.5
-    set m_c 1.5
-    set m_s 2.5
-    set m_l 1.5
-    set m_o 3.5
-    set w (random-normal 25 15 + 40)
-    set v list v_min v_min
-    set v_goal random-normal (v_min + ((v_max - v_min) / 2)) (((v_max - v_min) / 2) * 0.4)
-    set panic 0
-    set size 2 * r
-  ]
-end
-
-to setup
-  clear-all
-  set coef 1
+  if escenario = "A" [setup-A]
+  if escenario = "B" [setup-B]
+  if escenario = "C" [setup-C]
+  if escenario = "D" [setup-D]
+  if escenario = "E" [setup-E]
+  if escenario = "F" [setup-F]
   setup-personas
-  setup-parameters
-  ;setup-puertas
-  ;setup-patches
   reset-ticks
 end
 
@@ -240,26 +300,25 @@ end
 
 to-report move
     ; Inicializamos los vectores w_pos_media, x_separation, y_aligment, z_obstacles y v a 0
-  let w_pos_media [0 0]
-  let x_separation [0 0]
-  let y_aligment [0 0]
-  let z_obstacles [0 0]
+  set w_pos_media [0 0]
+  set x_separation [0 0]
+  set y_aligment [0 0]
+  set z_obstacles [0 0]
 
   let posx item 0 p
   let posy item 1 p
-  let dis_c d_c
-  let dis_a d_a
-  let dis_l d_l
 
   ; Calculamos w_pos_media como la componente de la velocidad que hace que la persona se mueva hacia el centro de masas del grupo
   let contador 0
   let comp0 item 0 w_pos_media
   let comp1 item 1 w_pos_media
-  ask personas with [sqrt ( (posx - [item 0 p] of self) ^ 2 + (posy - [item 1 p] of self) ^ 2 ) < dis_c and [who] of self != [who] of myself]
+  ask personas in-radius d_c;with [sqrt ( (posx - [item 0 p] of self) ^ 2 + (posy - [item 1 p] of self) ^ 2 ) < d_c and [who] of self != [who] of myself]
   [
-    set comp0 (comp0) + item 0 p
-    set comp1 (comp1) + item 1 p
-    set contador contador + 1
+    if [who] of self != [who] of myself [
+      set comp0 (comp0) + item 0 p
+      set comp1 (comp1) + item 1 p
+      set contador contador + 1
+    ]
   ]
   if contador != 0 [
     set w_pos_media list (comp0 / contador) (comp1 / contador)
@@ -268,10 +327,12 @@ to-report move
   ; Calculamos x_separation como la componente de la velocidad que hace que la persona se separe de otra que está muy cerca
   set comp0 item 0 x_separation
   set comp1 item 1 x_separation
-  ask personas with [sqrt ( (posx - [item 0 p] of self) ^ 2 + (posy - [item 1 p] of self) ^ 2 ) < dis_a and [who] of self != [who] of myself]
+  ask personas in-radius d_a;with [sqrt ( (posx - [item 0 p] of self) ^ 2 + (posy - [item 1 p] of self) ^ 2 ) < d_a and [who] of self != [who] of myself]
   [
-    set comp0 (comp0) - (item 0 p - posx)
-    set comp1 (comp1) - (item 1 p - posy)
+    if [who] of self != [who] of myself [
+      set comp0 (comp0) - (item 0 p - posx)
+      set comp1 (comp1) - (item 1 p - posy)
+    ]
   ]
   set x_separation list comp0 comp1
 
@@ -279,11 +340,13 @@ to-report move
   set contador 0
   set comp0 item 0 y_aligment
   set comp1 item 1 y_aligment
-  ask personas with [sqrt ( (posx - [item 0 p] of self) ^ 2 + (posy - [item 1 p] of self) ^ 2 ) < dis_l and [who] of self != [who] of myself]
+  ask personas in-radius d_l
   [
-    set comp0 (comp0) + (item 0 v)
-    set comp1 (comp1) + (item 1 v)
-    set contador contador + 1
+    if [who] of self != [who] of myself [
+      set comp0 (comp0) + (item 0 v)
+      set comp1 (comp1) + (item 1 v)
+      set contador contador + 1
+    ]
   ]
   if contador != 0 [
     set y_aligment list (comp0 / contador) (comp1 / contador)
@@ -292,7 +355,7 @@ to-report move
   ; Calculamos z_obstacles como la componente de la velocidad que hace que la persona se aleje de los obstáculos
   set comp0 item 0 z_obstacles
   set comp1 item 1 z_obstacles
-  ask patches with [sqrt ( (posx - [pxcor] of self) ^ 2 + (posy - [pycor] of self) ^ 2 ) < dis_a and tipo = "obstaculo"]
+  ask patches in-radius d_a
   [
     set comp0 (comp0) - (pxcor - posx)
     set comp1 (comp1) - (pycor - posy)
@@ -300,18 +363,28 @@ to-report move
   set z_obstacles list comp0 comp1
 
   ; Calculamos la velocidad de cada agente como una ponderación de los componentes calculados anteriormente
-  let v_pass_x ( m_c * (item 0 w_pos_media - item 0 p) + m_s * item 0 x_separation + m_l * (item 0 y_aligment - item 0 v) + 0 * item 0 z_obstacles )
-  let v_pass_y ( m_c * (item 1 w_pos_media - item 1 p) + m_s * item 1 x_separation + m_l * (item 1 y_aligment - item 1 v) + 0 * item 1 z_obstacles )
-  report list v_pass_x v_pass_y
+  report list ( m_c * (item 0 w_pos_media - item 0 p) + m_s * item 0 x_separation + m_l * (item 0 y_aligment - item 0 v) + m_o * item 0 z_obstacles ) ( m_c * (item 1 w_pos_media - item 1 p) + m_s * item 1 x_separation + m_l * (item 1 y_aligment - item 1 v) + m_o * item 1 z_obstacles )
 end
 
 to-report goal ; Devuelve la velocidad hacia el objetivo
-  let v_devuelve [0 0]
-  ask puertas [
-    let dis_puerta sqrt ( (item 0 centro - [item 0 p] of myself) ^ 2 + (item 1 centro - [item 1 p] of myself) ^ 2 )
-    if (dis_puerta < visibilidad)
-      [set v_devuelve list ([v_goal] of myself * (item 0 centro - [item 0 p] of myself) / dis_puerta ) ([v_goal] of myself * (item 1 centro - [item 1 p] of myself) / dis_puerta ) stop]
+  let v_devuelve list 0 0
+  ifelse puerta_vista = 0 [
+    ask puertas [
+      let dis_puerta sqrt ( (item 0 centro - [item 0 p] of myself) ^ 2 + (item 1 centro - [item 1 p] of myself) ^ 2 )
+      ifelse (dis_puerta < visibilidad)
+      [set v_devuelve list ([m_g] of myself * [v_goal_mod] of myself * (item 0 centro - [item 0 p] of myself) / dis_puerta ) ([m_g] of myself * [v_goal_mod] of myself * (item 1 centro - [item 1 p] of myself) / dis_puerta )
+       ask myself [ set puerta_vista 1]
+       ask myself [ set centro_puerta [centro] of myself ]
+       stop]
+      [
+        let v_random list (-1 + random-float 2) (-1 + random-float 2)
+        let mod_v_random modulo v_random
+        set v_devuelve list ([m_g] of myself * [v_goal_mod] of myself * (item 0 v_random) / mod_v_random ) ([m_g] of myself * [v_goal_mod] of myself * (item 1 v_random) / mod_v_random )
+      ]
+    ]
   ]
+  [ let dis_puerta sqrt ( (item 0 centro_puerta - item 0 p) ^ 2 + (item 1 centro_puerta - item 1 p) ^ 2 )
+    set v_devuelve list (m_g * v_goal_mod * (item 0 centro_puerta - item 0 p) / dis_puerta ) (m_g * v_goal_mod * (item 1 centro_puerta - item 1 p) / dis_puerta )]
   report v_devuelve
 end
 
@@ -324,12 +397,15 @@ to-report panico
       [ set D sqrt ( (item 0 centro - [item 0 p] of myself) ^ 2 + (item 1 centro - [item 1 p] of myself) ^ 2 ) stop]
   ]
 
-  let d1 (D - l) / L_max ; Componente d1 de pánico
+  ; Necesitamos escalar d1 de 0 a 1, por lo que definimos el pánico mínimo y máximo
+  set d1 (D - l) / L_max ; Componente d1 de pánico
+  set d1_norm (d1 - d1_min) / (d1_max - d1_min)
 
   ; Calculamos la componente 2 de pánico que tiene que ver con la diferencia de velocidades entre los vecinos y el agente
   let contador 0
   let comp0 0
   let comp1 0
+  let v_aux 0
   ask personas with [sqrt ( ([item 0 p] of myself - [item 0 p] of self) ^ 2 + ([item 1 p] of myself - [item 1 p] of self) ^ 2 ) < d_l and [who] of self != [who] of myself]
   [
     set comp0 (comp0) + (item 0 [v] of self)
@@ -337,94 +413,228 @@ to-report panico
     set contador contador + 1
   ]
   if contador != 0 [
-    let v_aux sqrt ( (comp0 / contador) ^ 2 + (comp1 / contador) ^ 2 )
+    set v_aux sqrt ( (comp0 / contador) ^ 2 + (comp1 / contador) ^ 2 )
   ]
 
-  let d2 ( sqrt (( item 0 v) ^ 2 + ( item 1 v) ^ 2) ) / v_max ; Componente d2 de pánico
+  ;print v_aux
+  let auxiliar v_aux - modulo v
+  set d2 auxiliar / v_max ; Componente d2 de pánico
+  set d2_norm (d2 - d2_min) / (d2_max - d2_min)
+
 
   ; Calculamos la tercera componente de pánico
 
+  ; Contamos los agentes que tienen un nivel de disconformidad por encima de T
+  let cuenta_incomodos 0
+  let cuenta_total 0
+  ask personas with [modulo list ([item 0 p] of myself - [item 0 p] of self) ([item 1 p] of myself - [item 1 p] of self) < d_c and [who] of self != [who] of myself] [
+    set disconformidad modulo_fuerza_total / (2 * r * pi)
+    ;print disconformidad
+    if disconformidad > T [
+      set cuenta_incomodos cuenta_incomodos + 1
+    ]
+    set cuenta_total cuenta_total + 1
+  ]
+  set d3 0
+  if cuenta_total > 0 [set d3 cuenta_incomodos / cuenta_total] ; Componente d3 de pánico
+  ; Calculamos la cuarta componente de pánico
+  set auxiliar (v_min - modulo v)
+  set d4 auxiliar / v_max
+  set d4_norm (d4 - d4_min) / (d4_max - d4_min)
 
 
-
-  ;  let vi (list 0 0)
-;  let module (sqrt((item 0 v) ^ 2 + (item 1 v) ^ 2))
-;  ask turtles in-radius (coef * 4 * r) [set vi (map + vi v)]
-;  let d2 ((sqrt((item 0 vi) ^ 2 + (item 1 vi) ^ 2) - module) / (coef * 1.95))
-;
-;  ;d3 depende de las fuerzas
-;  let O (count turtles in-radius (coef * 8 * r) with [out = 0 and F >= T])
-;  let d3 O / (count turtles with [out = 0])
-;
-;  let d4 (coef * 0.35 - module) / (coef * 1.95)
-;
-;  let xi (d1 + d2 + d3 + d4) / 4
-;  let p_i (p + xi) / 2
-;  report p_i
+  let nuevo_panico (d1_norm + d2_norm + d3 + d4_norm) / 4
+  report (panic + nuevo_panico) / 2
 end
 
 to-report fuerzas
+  let termino_1 list 0 0
+  let termino_2 list 0 0
+  let termino_3 list 0 0
 ; Fuerzas de interacción entre agentes
+  let fuerza_recibida list 0 0
+  let modulo_fuerza_total_aux 0
   ask personas with [modulo list ([item 0 p] of myself - [item 0 p] of self) ([item 1 p] of myself - [item 1 p] of self) < d_l and [who] of self != [who] of myself]
   [
+
     ; Distancia entre agentes
-    let distancia_ij modulo list ([item 0 p] of myself - [item 0 p] of self) ([item 1 p] of myself - [item 1 p] of self)
+    let d_ij modulo list ([item 0 p] of myself - [item 0 p] of self) ([item 1 p] of myself - [item 1 p] of self)
     ; Vector unitario en la dirección que une dos agentes
-    let n_ij list (([item 0 p] of myself - [item 0 p] of self) / distancia_ij) (([item 1 p] of myself - [item 1 p] of self) / distancia_ij)
+    if d_ij = 0 [set d_ij 0.01]
+    let n_ij list (([item 0 p] of myself - [item 0 p] of self) / d_ij) (([item 1 p] of myself - [item 1 p] of self) / d_ij)
     ; Suma de la anchura de dos agentes
     let r_ij [r] of myself + [r] of self
+    ;Termino auxiliar
+    let r_d (r_ij - d_ij)
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; CALCULO DEL TERMINO 2 y 3
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ifelse (d_ij < r_ij) ;and herido = 0) ;Programacion de la funcion g(x)
+    [ set termino_2 list (item 0 n_ij * k1 * r_d) (item 1 n_ij * k1 * r_d)
+      let t_ij list (- item 1 n_ij) (item 0 n_ij)
+      let dv_ji list ([item 0 v] of self - [item 0 v] of myself) ([item 1 v] of self - [item 1 v] of myself)
+      set termino_3 list (k2 * r_d * item 0 dv_ji * item 0 t_ij) (k2 * r_d * item 1 dv_ji * item 1 t_ij)
+    ]
+    [ set termino_2 list 0 0
+      set termino_3 list 0 0
+    ]
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; CALCULO DE LA FUERZA TOTAL RECIBIDA
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;ifelse herido = 0 ; !!!!!!!!!!!!!!!COMENTAR
     ; Primer término de la fuerza entre dos agentes
-    let termino_1 list (A * e ^ ((r_ij - distancia_ij) / B) * item 0 n_ij) (A * e ^ ((r_ij - distancia_ij) / B) * item 1 n_ij)
+    set termino_1 list (A * e ^ (r_d / B) * item 0 n_ij) (A * e ^ (r_d / B) * item 1 n_ij)
+    ;[ set termino_1 list 0 0 ]
+    let f list ((item 0 termino_1) + (item 0 termino_2) + (item 0 termino_3)) ((item 1 termino_1) + (item 1 termino_2) + (item 1 termino_3))
+    set fuerza_recibida list (item 0 fuerza_recibida + item 0 f) (item 1 fuerza_recibida + item 1 f)
+    set modulo_fuerza_total_aux (modulo_fuerza_total_aux + modulo f)
+]
+  set modulo_fuerza_total modulo_fuerza_total_aux
+  report fuerza_recibida
 
+end
 
-  ]
+to-report fuerzas_patches
+; Fuerzas de interacción entre agentes
+  let termino_1 list 0 0
+  let termino_2 list 0 0
+  let termino_3 list 0 0
+  let fuerza_recibida list 0 0
+  let modulo_fuerza_total_aux 0
+  ask patches in-radius d_l with [tipo = "obstaculo"]
+  [
+    ; Distancia entre agentes
+    let d_ij modulo list ([item 0 p] of myself - pxcor) ([item 1 p] of myself - pycor)
+    ; Vector unitario en la dirección que une dos agentes
+    if d_ij = 0 [set d_ij 0.01]
+    let n_ij list (([item 0 p] of myself - pxcor) / d_ij) (([item 1 p] of myself - pycor) / d_ij)
+    ; Suma de la anchura de dos agentes
+    let r_ij [r] of myself + 0.5
+    ;Termino auxiliar
+    let r_d (r_ij - d_ij)
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; CALCULO DEL TERMINO 2 y 3
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ifelse (d_ij < r_ij) ;Programacion de la funcion g(x)
+    [ set termino_2 list (item 0 n_ij * k1 * r_d) (item 1 n_ij * k1 * r_d)
+      let t_ij list (- item 1 n_ij) (item 0 n_ij)
+      let dv_ji list ([item 0 v] of myself) ([item 1 v] of myself)
+      set termino_3 list (k2 * r_d * item 0 dv_ji * item 0 t_ij) (k2 * r_d * item 1 dv_ji * item 1 t_ij)
+    ]
+    [ set termino_2 list 0 0
+      set termino_3 list 0 0
+    ]
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; CALCULO DE LA FUERZA TOTAL RECIBIDA
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ifelse milisegundo < 11 ; Solo consideramos el término de separación por fuerza social cada segundo
+    [ ; Primer término de la fuerza entre dos agentes
+      set termino_1 list (A * e ^ (r_d / B) * item 0 n_ij) (A * e ^ (r_d / B) * item 1 n_ij)
+    ]
+    [
+      set termino_1 list 0 0
+    ]
+    let f list ((item 0 termino_1) + (item 0 termino_2) + (item 0 termino_3)) ((item 1 termino_1) + (item 1 termino_2) + (item 1 termino_3))
+    set fuerza_recibida list (item 0 fuerza_recibida + item 0 f) (item 1 fuerza_recibida + item 1 f)
+    set modulo_fuerza_total_aux (modulo_fuerza_total_aux + modulo f)
+]
+  set modulo_fuerza_total modulo_fuerza_total + modulo_fuerza_total_aux
+  report fuerza_recibida
 
 end
 
 to evacuate
-  ask personas [
+  if milisegundo = 10 [
+    set personas_aterradas 0
+    set personas_asustadas 0
+    let contador_panico_alto 0
+    let contador_panico_mayor 0
+    let suma_panico  0
+    ask personas[
 
+    if herido = 0 [
+        ; Calculo la velocidad asociada a llegar al objetivo
+        set v_goal goal
+        set g_medio (g_medio + (modulo v_goal))
+
+        ; Calculo la velocidad por la interacción con otros agentes
+        let v_m move
+        ; Sumo los términos anteriores para calcular la velocidad total
+        set v_nueva list (item 0 v_goal + item 0 v_m) (item 1 v_goal + item 1 v_m)
+        ; Nos aseguramos que estamos dentro de los límites para la velocidad
+        let mod_v_nueva modulo v_nueva
+        ;if mod_v_nueva > 2
+        ;print mod_v_nueva
+        if mod_v_nueva > v_max and mod_v_nueva != 0 [set v_nueva list ((v_max * (item 0 v_nueva)) / mod_v_nueva) ((v_max * (item 1 v_nueva)) / mod_v_nueva)]
+        ;if mod_v_nueva < v_min and mod_v_nueva != 0 [set v_nueva list ((v_min * (item 0 v_nueva)) / mod_v_nueva) ((v_min * (item 1 v_nueva)) / mod_v_nueva)]
+   ]
+    ; Actualizo el pánico
+
+    set panic panico
+    if panic >= 0.5 and herido = 0 [
+      set contador_panico_mayor contador_panico_mayor + 1
+      set m_s 0
+      set m_l 0
+      set m_o 0
+      set v_nueva move
+      let panico_medio 0
+      let contador_cercanos 0
+      ask personas with [modulo list ([item 0 p] of myself - [item 0 p] of self) ([item 1 p] of myself - [item 1 p] of self) < d_c and [who] of self != [who] of myself] [
+          set panico_medio panico_medio + [panic] of self
+          set contador_cercanos contador_cercanos + 1
+          ]
+          if contador_cercanos != 0 [
+            set panic panico_medio / contador_cercanos
+          ]
+      ]
+      set suma_panico suma_panico + panic
+      set m_s 0 ;2.5
+      set m_l 0 ;1.5 / 10
+      set m_o 0 ;3.5
+
+      if herido = 1 [set panic 1 set contador_panico_alto contador_panico_alto + 1]
+    ]
+    set personas_aterradas (contador_panico_alto)
+    set personas_asustadas (contador_panico_alto + contador_panico_mayor)
+    ifelse (count personas > 1 and para = 0)
+    [set panico_global (suma_panico / count personas)
+      set g_medio (g_medio / count personas)] [stop]
+    set milisegundo 0
+  ]
+  set v_media 0 ; Para representar la velocidad media de todas las personas
+  ask personas[
     ; Elimino los agentes que han cruzado la puerta
-    if any? neighbors4 with [tipo = "puerta"] [ ;;; REVISARRRRRRRRRRRRRRRRRRRRR!!!!!!!!!!!!!!!!!!!!!!
+    if [tipo] of patch-here = "puerta" [
       die
     ]
-    ; Inicializo las componentes de velocidad a cero
-    let v_nueva [0 0]
-    let v_g [0 0]
-    let v_m [0 0]
-    let p_ant p
+    ; Calculo las fuerzas
+    ifelse herido = 0 [
+      ; Calculo las fuerzas
+      if modulo_fuerza_total / (2 * r * pi) > T [set color blue set herido 1]
+      set aceleracion_recibe (map [ i -> i / w ] (map + fuerzas fuerzas_patches))
+      ; Consideramos una aceleración social añadida, que viene dada por la desviación de la velocidad objetivo que lleva cada persona y calculamos la aceleración total
+      set aceleracion (map + (aceleracion_recibe) (map - v_nueva v))
+      set v (map + v (map [ i -> i * 0.1 ] aceleracion))
 
-    ; Calculo la velocidad asociada a llegar al objetivo
-    set v_g goal
-    set g_medio (g_medio + (modulo v_g))
-    set v_g list ((first v_g) * m_g) ((last v_g) * m_g)
-
-    ; Calculo la velocidad por la interacción con otros agentes
-    set v_m move
-    ; Sumo los términos anteriores para calcular la velocidad total
-    set v_nueva list (item 0 v_g + item 0 v_m) (item 1 v_g + item 1 v_m)
-    ; Nos aseguramos que estamos dentro de los límites para la velocidad
-    let mod_v_nueva modulo v_nueva
-    if mod_v_nueva > v_max and mod_v_nueva != 0 [set v_nueva list ((v_max * (item 0 v_nueva)) / mod_v_nueva) ((v_max * (item 1 v_nueva)) / mod_v_nueva)]
-    if mod_v_nueva < v_min and mod_v_nueva != 0 [set v_nueva list ((v_min * (item 0 v_nueva)) / mod_v_nueva) ((v_min * (item 1 v_nueva)) / mod_v_nueva)]
-
-    ; Actualizo la posición
-    set p list (item 0 p + item 0 v_nueva) (item 1 p + item 1 v_nueva)
-    ; Limito la posición a los bordes del escenario
-    if (item 0 p) >= max-pxcor [set p list (max-pxcor - 1) (item 1 p)]
-    if (item 1 p) >= max-pycor [set p list (item 0 p) (max-pycor - 1)]
-    if (item 0 p) <= 0 - max-pxcor [set p list (- max-pxcor + 1) (item 1 p)]
-    if (item 1 p) <= 0 - max-pycor [set p list (item 0 p) (- max-pycor + 1)]
-    set xcor (item 0 p)  set ycor (item 1 p)
-
-    ; Actualizo la velocidad
-    set v (map + (map [ i -> i * 0.5 ] v_nueva) (map [ i -> i * (1 - 0.5) ] v))
-    set v_media (v_media + (modulo v))
-
-
+      ; Nos aseguramos que estamos dentro de los límites para la velocidad
+      let mod_v modulo v
+      ifelse mod_v > v_max and mod_v != 0 [set v list ((v_max * (item 0 v)) / mod_v) ((v_max * (item 1 v)) / mod_v) ] []
+      ;if mod_v < v_min and mod_v != 0 [set v list ((v_min * (item 0 v)) / mod_v) ((v_min * (item 1 v)) / mod_v)]
+      set v_media v_media + modulo v
+      ; Actualizo la posición
+      set p list (item 0 p + item 0 v * 0.1) (item 1 p + item 1 v * 0.1)
+      set xcor (item 0 p)  set ycor (item 1 p)
+    ] [set v list 0 0]
   ]
-  set v_media (v_media / count personas)
-  set g_medio (g_medio / count personas)
+  ifelse count personas > 1 and para = 0
+  [
+    set v_media (v_media / count personas)
+  ] [stop]
+  set milisegundo milisegundo + 1
   tick
 end
 @#$#@#$#@
@@ -461,7 +671,7 @@ INPUTBOX
 161
 71
 numero_personas
-200.0
+300.0
 1
 0
 Number
@@ -489,7 +699,7 @@ BUTTON
 165
 117
 evacuate
-let c (count turtles)\nrepeat 25 [evacuate]\nif (count turtles = c) [stop]
+let c (count turtles)\nrepeat 100 [evacuate]\nif (count turtles = c ) [stop]
 T
 1
 T
@@ -506,7 +716,7 @@ BUTTON
 78
 153
 A
-setup-A
+set escenario \"A\"\nprint \"Has elegido el escenario A\"
 NIL
 1
 T
@@ -523,7 +733,7 @@ BUTTON
 165
 152
 B
-setup-B
+set escenario \"B\"\nprint \"Has elegido el escenario B\"
 NIL
 1
 T
@@ -540,7 +750,7 @@ BUTTON
 78
 189
 C
-setup-C
+set escenario \"C\"\nprint \"Has elegido el escenario C\"
 NIL
 1
 T
@@ -557,7 +767,7 @@ BUTTON
 165
 188
 D
-setup-D
+set escenario \"D\"\nprint \"Has elegido el escenario D\"
 NIL
 1
 T
@@ -574,7 +784,7 @@ BUTTON
 77
 225
 E
-setup-E
+set escenario \"E\"\nprint \"Has elegido el escenario E\"
 NIL
 1
 T
@@ -591,7 +801,7 @@ BUTTON
 165
 224
 F
-setup-F
+set escenario \"F\"\nprint \"Has elegido el escenario F\"
 NIL
 1
 T
@@ -638,23 +848,128 @@ false
 PENS
 "default" 1.0 0 -16777216 true "" "plot v_media"
 
+MONITOR
+1000
+227
+1077
+272
+milisegundo
+milisegundo
+17
+1
+11
+
+BUTTON
+48
+249
+111
+282
+NIL
+reset
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+MONITOR
+973
+122
+1094
+167
+personas aterradas
+personas_aterradas
+17
+1
+11
+
+MONITOR
+972
+174
+1098
+219
+panico mayor de 0.5
+personas_asustadas
+17
+1
+11
+
 PLOT
-685
-349
-885
-499
-gMedio
+679
+344
+967
+494
+Personas aterradas vs Personas asustadas
 NIL
 NIL
 0.0
 10.0
 0.0
-2.0
+10.0
 true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot g_medio"
+"default" 1.0 0 -2674135 true "" "plot personas_aterradas"
+"pen-1" 1.0 0 -723837 true "" "plot personas_asustadas"
+
+PLOT
+1143
+325
+1343
+475
+panico medio
+NIL
+NIL
+0.0
+10.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot panico_global"
+
+PLOT
+1130
+21
+1476
+171
+Fuerza que sufren los no heridos
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot sum [modulo_fuerza_total] of personas with [herido = 0]  / count personas with [herido = 0]"
+
+PLOT
+1136
+174
+1477
+324
+Fuerzas que sufren los heridos
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot sum [modulo_fuerza_total] of personas with [herido = 1]  / count personas with [herido = 1]"
 
 @#$#@#$#@
 ## WHAT IS IT?
