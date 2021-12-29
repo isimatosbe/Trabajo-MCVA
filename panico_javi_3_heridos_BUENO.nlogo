@@ -6,6 +6,7 @@ personas-own [
   w ; Peso
   v ; Velocidad
   v_nueva ; velocidad nueva
+  v_max_desired ; Módulo máximo de la velocidad deseada que tienen los agentes
   v_goal_mod ; Módulo del término de la velocidad que decimos que tienen los agentes en dirección a la puerta
   v_goal ; Término de la velocidad que decimos que tienen los agentes en dirección a la puerta
   p ; Posición
@@ -55,6 +56,7 @@ personas-own [
 ]
 
 globals [
+  ; el límite de fuerza que puede aguantar una persona puede hacerse decreciente con la velocidad efectiva que lleve el agente (probar como funciona).
   T ; Fuerza límite que recibe una persona para no poder moverse N
   T_M ; Presión máxima que recibe una persona a partir de la cual no puede moverse (N/m)
   coef ; Intervalo temporal para utilizar en la simulación
@@ -227,6 +229,7 @@ to setup-personas
   set-default-shape personas "circle"
   create-personas numero_personas
   ask personas [
+    set v_max_desired 2 ; La velocidad máxima a la que desean ir los agentes es 2 m/s
     let clase "libre"
     set color white
     let x_cor random (max-pxcor - min-pxcor - 1) + min-pxcor + 1
@@ -252,8 +255,8 @@ to setup-personas
     set m_g 6.5 / 10
     set m_c 0;1.5 / 10
     set m_s 0;2.5
-    set m_l 0;1.5 / 10
     set m_o 0;3.5
+    set m_l 0;1.5 / 10
     set w (random-normal 25 15 + 40)
     set v list v_min v_min
     set v_goal_mod random-normal (v_min + ((v_max - v_min) / 2)) (((v_max - v_min) / 2) * 0.4)
@@ -567,10 +570,9 @@ to evacuate
         set v_nueva list (item 0 v_goal + item 0 v_m) (item 1 v_goal + item 1 v_m)
         ; Nos aseguramos que estamos dentro de los límites para la velocidad
         let mod_v_nueva modulo v_nueva
-        ;if mod_v_nueva > 2
-        ;print mod_v_nueva
-        if mod_v_nueva > v_max and mod_v_nueva != 0 [set v_nueva list ((v_max * (item 0 v_nueva)) / mod_v_nueva) ((v_max * (item 1 v_nueva)) / mod_v_nueva)]
-        ;if mod_v_nueva < v_min and mod_v_nueva != 0 [set v_nueva list ((v_min * (item 0 v_nueva)) / mod_v_nueva) ((v_min * (item 1 v_nueva)) / mod_v_nueva)]
+        if mod_v_nueva > v_max_desired and mod_v_nueva != 0 [set v_nueva list ((v_max_desired * (item 0 v_nueva)) / mod_v_nueva) ((v_max_desired * (item 1 v_nueva)) / mod_v_nueva)]
+        ; hacer la velocidad máxima deseada creciente con el pánico puede ser una idea. Otra es que la velocidad deseada siempre tenga el módulo v_max_desired, entonces quitamos la condición if de arriba
+        ; Comprobar el tiempo de salida y las personas que mueren, etc. para distintas velocidades v_max y v_max_desired. representar gráficas en los resultados
    ]
     ; Actualizo el pánico
 
@@ -617,13 +619,12 @@ to evacuate
       if modulo_fuerza_total / (2 * r * pi) > T [set color blue set herido 1]
       set aceleracion_recibe (map [ i -> i / w ] (map + fuerzas fuerzas_patches))
       ; Consideramos una aceleración social añadida, que viene dada por la desviación de la velocidad objetivo que lleva cada persona y calculamos la aceleración total
-      set aceleracion (map + (aceleracion_recibe) (map - v_nueva v))
+      set aceleracion (map + (aceleracion_recibe) (map - v_nueva v)) ; Para tau (factor de relajación) igual a 1
       set v (map + v (map [ i -> i * 0.1 ] aceleracion))
 
       ; Nos aseguramos que estamos dentro de los límites para la velocidad
       let mod_v modulo v
       ifelse mod_v > v_max and mod_v != 0 [set v list ((v_max * (item 0 v)) / mod_v) ((v_max * (item 1 v)) / mod_v) ] []
-      ;if mod_v < v_min and mod_v != 0 [set v list ((v_min * (item 0 v)) / mod_v) ((v_min * (item 1 v)) / mod_v)]
       set v_media v_media + modulo v
       ; Actualizo la posición
       set p list (item 0 p + item 0 v * 0.1) (item 1 p + item 1 v * 0.1)
