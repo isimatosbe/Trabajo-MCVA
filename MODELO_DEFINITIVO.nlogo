@@ -699,6 +699,14 @@ to setup-F
   ask patches with [pxcor > ceiling (min-pxcor / 3) and pxcor = -1 * pycor + 7 and pxcor < ceiling (2 * max-pxcor / 3)] [set tipo "obstaculo" set pcolor red]
   setup-patches
 end
+
+; Para dibujar los obstaculos ejecutamos una función de manera indefinida (FOREVER) y comprobamos donde hace click el
+; usuario, en esas casillas mata a las tortugas que haya, las pinta de rojo y pone que son de tipo obstaculo. Si da doble
+; click sobre uno lo elimina y para que esto funcione bien tenemos que esperar un poco tras cada click
+to draw-obstaculos
+  if mouse-down? [ask patch mouse-xcor mouse-ycor [ask turtles-here [die] ifelse pcolor = red [set pcolor black set tipo 0] [set pcolor red set tipo "obstaculo"]]]
+  wait .15
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
@@ -879,7 +887,7 @@ PLOT
 15
 873
 165
-OUT
+Personas evacuadas
 NIL
 NIL
 0.0
@@ -897,7 +905,7 @@ PLOT
 181
 879
 331
-vMedia
+Velocidad media
 NIL
 NIL
 0.0
@@ -922,10 +930,10 @@ milisegundo
 11
 
 BUTTON
-48
-249
-111
-282
+52
+243
+115
+276
 NIL
 reset
 NIL
@@ -943,7 +951,7 @@ MONITOR
 343
 1106
 388
-personas aterradas
+Personas aterradas
 personas_aterradas
 17
 1
@@ -954,7 +962,7 @@ MONITOR
 395
 1110
 440
-panico mayor de 0.5
+Panico mayor de 0.5
 personas_asustadas
 17
 1
@@ -984,7 +992,7 @@ PLOT
 325
 1343
 475
-panico medio
+Panico medio
 NIL
 NIL
 0.0
@@ -1029,9 +1037,9 @@ NIL
 10.0
 true
 false
-"if (count personas with [herido = 1] = 0) [ stop ]" ""
+"" ""
 PENS
-"default" 0.1 0 -16777216 true "" "plot sum [modulo_fuerza_total] of personas with [herido = 1]  / count personas with [herido = 1]"
+"default" 0.1 0 -16777216 true "" "if (count personas with [herido = 1] != 0) [\nplot sum [modulo_fuerza_total] of personas with [herido = 1]  / count personas with [herido = 1]\n]"
 
 INPUTBOX
 904
@@ -1065,6 +1073,34 @@ T
 1
 0
 Number
+
+MONITOR
+791
+103
+863
+148
+nEvacuadas
+numero_personas - count turtles
+17
+1
+11
+
+BUTTON
+11
+298
+159
+331
+Obstaculos Manuales
+draw-obstaculos
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
