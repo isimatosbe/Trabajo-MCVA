@@ -614,7 +614,7 @@ to setup-B
     set cor_y []
     foreach (range (- radio) (radio + 1)) [i -> set cor_x insert-item 0 cor_x (item 0 centro + i) set cor_y insert-item 0 cor_y (item 1 centro)]
   ]
-  set visibility (word (list (1 / 2) (precision (1 / 6) 3)))
+  set visibility (word (list (1 / 2) (1 / 2)))
   set nSalidas 2
   setup-patches
 end
@@ -716,14 +716,17 @@ to setup-F
   setup-patches
 end
 
+;   En este escenario podemos ingresar manualmente el número de salidas que queremos (nSalidas) y
+; la visivilidad de cada una de ellas como un vector (visibility)
 to setup-manual
   print "Escenario Manual cargado"
-  let ver (read-from-string visibility)
+  let ver (read-from-string visibility) ; Leemos la entrada visibility, y la interpretamos como un vector
   let pos 0
   repeat nSalidas [
+    ; Creamos nSalidas puertas
     create-puertas 1 [
     set hidden? true
-    set visibilidad (L_max * (item pos ver)) ; Definimos la visibilidad como la mayor distancia del escenario
+    set visibilidad (L_max * (item pos ver)) ; La visibilidad viene dada como un porcentaje sobre la visibilidad máxima (L_max)
     set centro puerta-aleatoria
     set radio 1
     set cor_x []
@@ -736,6 +739,11 @@ to setup-manual
   setup-patches
 end
 
+;   puerta-aleatoria nos busca las coordenadas de una puerta de forma aleatoria, fijamos aleatoriamente un lado.
+; Si lado es 0, colocamos la puerta en la pared superior
+; Si lado es 1, colocamos la puerta en la pared derecha
+; Si lado es 2, colocamos la puerta en la pared inferior
+; Y si ninguna de ellas ocurre, la ponemos en la pared izquierda
 to-report puerta-aleatoria
   let lado (random 4)
   let x 0
@@ -758,10 +766,10 @@ to draw-obstaculos
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
-10
-647
-448
+438
+61
+875
+499
 -1
 -1
 13.0
@@ -785,10 +793,10 @@ ticks
 30.0
 
 INPUTBOX
-6
-11
-161
-71
+12
+244
+146
+304
 numero_personas
 500.0
 1
@@ -796,10 +804,10 @@ numero_personas
 Number
 
 BUTTON
-8
-84
-78
-117
+12
+376
+146
+410
 Setup
 setup
 NIL
@@ -813,10 +821,10 @@ NIL
 1
 
 BUTTON
-82
-84
-165
-117
+152
+376
+286
+410
 Evacuate
 let c (count turtles)\nrepeat 100 [evacuate]\nif (count turtles = c ) [stop]
 T
@@ -830,10 +838,10 @@ NIL
 1
 
 BUTTON
-8
-120
-78
-153
+12
+204
+76
+238
 A
 set escenario \"A\"\nprint \"Has elegido el escenario A\"
 NIL
@@ -848,9 +856,9 @@ NIL
 
 BUTTON
 82
-119
-165
-152
+204
+146
+238
 B
 set escenario \"B\"\nprint \"Has elegido el escenario B\"
 NIL
@@ -864,10 +872,10 @@ NIL
 1
 
 BUTTON
-8
-156
-78
-189
+152
+204
+216
+238
 C
 set escenario \"C\"\nprint \"Has elegido el escenario C\"
 NIL
@@ -881,10 +889,10 @@ NIL
 1
 
 BUTTON
-83
-155
-165
-188
+222
+204
+286
+238
 D
 set escenario \"D\"\nprint \"Has elegido el escenario D\"
 NIL
@@ -898,10 +906,10 @@ NIL
 1
 
 BUTTON
-8
-192
-77
-225
+292
+204
+356
+238
 E
 set escenario \"E\"\nprint \"Has elegido el escenario E\"
 NIL
@@ -915,10 +923,10 @@ NIL
 1
 
 BUTTON
-82
-191
-165
-224
+362
+204
+426
+238
 F
 set escenario \"F\"\nprint \"Has elegido el escenario F\"
 NIL
@@ -932,10 +940,10 @@ NIL
 1
 
 PLOT
-673
-15
-873
-165
+887
+61
+1087
+220
 Personas evacuadas
 NIL
 NIL
@@ -950,10 +958,10 @@ PENS
 "default" 0.1 0 -16777216 true "" "plot (numero_personas - count turtles)"
 
 PLOT
-679
-181
-879
-331
+887
+226
+1087
+385
 Velocidad media
 NIL
 NIL
@@ -968,10 +976,10 @@ PENS
 "default" 0.1 0 -16777216 true "" "plot v_media"
 
 MONITOR
-1012
-448
-1089
-493
+794
+505
+875
+550
 milisegundo
 milisegundo
 17
@@ -979,10 +987,10 @@ milisegundo
 11
 
 BUTTON
-52
-243
-116
-276
+292
+376
+426
+410
 Reset
 reset
 NIL
@@ -995,34 +1003,12 @@ NIL
 NIL
 1
 
-MONITOR
-985
-343
-1106
-388
-Personas aterradas
-personas_aterradas
-17
-1
-11
-
-MONITOR
-984
-395
-1110
-440
-Panico mayor de 0.5
-personas_asustadas
-17
-1
-11
-
 PLOT
-679
-344
-967
-494
-Personas aterradas vs Personas asustadas
+1093
+61
+1393
+220
+Personas Aterradas vs Asustadas
 NIL
 NIL
 0.0
@@ -1034,13 +1020,35 @@ true
 "" ""
 PENS
 "Aterradas" 0.1 0 -2674135 true "" "plot personas_aterradas"
-"Asustadas" 0.1 0 -11221820 true "" "plot personas_asustadas"
+"Asustadas" 0.1 0 -8431303 true "" "plot personas_asustadas"
+
+MONITOR
+1326
+120
+1388
+165
+Aterradas
+personas_aterradas
+17
+1
+11
+
+MONITOR
+1326
+170
+1388
+215
+Asustadas
+personas_asustadas
+17
+1
+11
 
 PLOT
-1143
-325
-1343
-475
+887
+391
+1087
+550
 Panico medio
 NIL
 NIL
@@ -1055,10 +1063,10 @@ PENS
 "default" 0.1 0 -16777216 true "" "plot panico_global"
 
 PLOT
-1130
-21
-1476
-171
+1093
+226
+1393
+385
 Fuerza que sufren los no heridos
 NIL
 NIL
@@ -1073,10 +1081,10 @@ PENS
 "default" 0.1 0 -16777216 true "" "plot sum [modulo_fuerza_total] of personas with [herido = 0]  / count personas with [herido = 0]"
 
 PLOT
-1136
-174
-1477
-324
+1093
+391
+1393
+550
 Fuerzas que sufren los heridos
 NIL
 NIL
@@ -1091,10 +1099,10 @@ PENS
 "default" 0.1 0 -16777216 true "" "if (count personas with [herido = 1] != 0) [\nplot sum [modulo_fuerza_total] of personas with [herido = 1]  / count personas with [herido = 1]\n]"
 
 INPUTBOX
-904
-16
-1028
-76
+152
+244
+286
+304
 v_max_desired_inicial
 2.0
 1
@@ -1102,10 +1110,10 @@ v_max_desired_inicial
 Number
 
 INPUTBOX
-904
-85
-1059
-145
+292
+244
+356
+304
 v_max
 1.95
 1
@@ -1113,10 +1121,10 @@ v_max
 Number
 
 INPUTBOX
-905
-154
-964
-214
+362
+244
+426
+304
 T
 20000.0
 1
@@ -1124,21 +1132,21 @@ T
 Number
 
 MONITOR
-791
-103
-863
-148
-nEvacuadas
+616
+505
+786
+550
+Personas Evacuadas
 numero_personas - count turtles
 17
 1
 11
 
 BUTTON
-11
-298
-159
-331
+12
+310
+146
+370
 Obstaculos Manuales
 draw-obstaculos
 T
@@ -1152,11 +1160,11 @@ NIL
 1
 
 BUTTON
-11
-335
-160
-368
-Setup Manual
+152
+310
+216
+370
+Manual
 set escenario \"manual\"\nprint \"Has elegido el escenario manual\"
 NIL
 1
@@ -1169,26 +1177,57 @@ NIL
 1
 
 INPUTBOX
-14
-372
-73
-432
+222
+310
+286
+370
 nSalidas
-3.0
+1.0
 1
 0
 Number
 
 INPUTBOX
-14
-435
-192
-495
+292
+310
+426
+370
 visibility
-[0.5 0.25 0.25]
+[1]
 1
 0
 String
+
+TEXTBOX
+12
+61
+426
+198
+Los ejemplos del artículo pueden configurarse directamente con los siguientes botones:\n- A: Una sola salida en el medio que todo el mundo puede ver.\n- B: Dos salidas en el medio con visibilidad media.\n- C: Dos salidas en el medio con visibilidad media y baja.\n- D: Dos salidas en las esquinas izquierdas con baja visibilidad.\n- E: Dos salidas en esquinas opuestas con visibilidad media.\n- F: Una salida en el medio con visibilidad completa y obstáculos.
+14
+0.0
+1
+
+TEXTBOX
+148
+12
+1245
+49
+Evacuaciones de Emergencia Considerando el Comportamiento Humano en Pánico
+30
+0.0
+1
+
+MONITOR
+438
+505
+608
+550
+Segundos de Ejecución
+ticks / 10
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
