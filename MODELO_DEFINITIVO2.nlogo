@@ -163,6 +163,8 @@ to evacuate
         let mod_v_nueva modulo v_nueva
         if mod_v_nueva > v_max_desired and mod_v_nueva != 0 [set v_nueva list ((v_max_desired * (item 0 v_nueva)) / mod_v_nueva) ((v_max_desired * (item 1 v_nueva)) / mod_v_nueva)]
         set suma_panico suma_panico + panic
+        ; Para que se cambien de color las personas según su pánico
+        set color scale-color blue panic 0.55 0.05
       ]
 
       set m_l 1.5 ;/ 10
@@ -186,7 +188,7 @@ to evacuate
     ; Calculo las fuerzas
     ifelse herido = 0 [
       ; Calculo las fuerzas
-      if modulo_fuerza_total / (2 * r * pi) > T [set color blue set herido 1]
+      if modulo_fuerza_total / (2 * r * pi) > T [set color red set herido 1]
       set aceleracion_recibe (map [ i -> i / w ] (map + fuerzas fuerzas_patches))
 ;      print word "Aceleración provocada por las fuerzas " aceleracion_recibe
       ; Consideramos una aceleración social añadida, que viene dada por la desviación de la velocidad objetivo que lleva cada persona y calculamos la aceleración total
@@ -1203,7 +1205,7 @@ TEXTBOX
 61
 426
 198
-Los ejemplos del artículo pueden configurarse directamente con los siguientes botones:\n- A: Una sola salida en el medio que todo el mundo puede ver.\n- B: Dos salidas en el medio con visibilidad media.\n- C: Dos salidas en el medio con visibilidad media y baja.\n- D: Dos salidas en las esquinas izquierdas con baja visibilidad.\n- E: Dos salidas en esquinas opuestas con visibilidad media.\n- F: Una salida en el medio con visibilidad completa y obstáculos.
+  Los ejemplos del artículo pueden configurarse directamente con los siguientes botones:\n- A: Una sola salida en el medio que todo el mundo puede ver.\n- B: Dos salidas en el medio con visibilidad media.\n- C: Dos salidas en el medio con visibilidad media y baja.\n- D: Dos salidas en las esquinas izquierdas con baja visibilidad.\n- E: Dos salidas en esquinas opuestas con visibilidad media.\n- F: Una salida en el medio con visibilidad completa y obstáculos.
 14
 0.0
 1
