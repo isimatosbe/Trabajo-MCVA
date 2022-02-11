@@ -2,7 +2,7 @@ breed [personas persona] ;Personas dentro de la simulación
 ;breed [obstaculos obstaculo] ;Obstaculos dentro de la simulación
 breed [puertas puerta] ;Creamos las puertas
 personas-own [
-  r ; Raio: entre 0,25 y 0,4 m
+  r ; Radio: entre 0,25 y 0,4 m
   w ; Peso
   v ; Velocidad
   v_nueva ; velocidad nueva
@@ -14,7 +14,7 @@ personas-own [
   disconformidad ; Disconformidad que sufren los agentes debido a las fuerzas
   panic ; Pánico: Entre 0 y 1
   l ; Distancia máxima aceptable a la puerta de salida
-  d_a ; Distancia mínima a la cuál un agente se separa de otro
+  ;d_a ; Distancia mínima a la cuál un agente se separa de otro
   d_c ; Distancia radial desde el agente i que define los límites del grupo que consideramos para comportamiento de cohesión
   d_l ; Distancia radial desde el agente i que define los límites del grupo que consideramos para comportamiento de alineamiento
   m_g ; Factor asociado con el comportamiento del agente para llegar al objetivo. Es dominante cuando el agente conoce el objetivo y no interviene cuando el agente no lo conoce.
@@ -58,8 +58,8 @@ globals [
   espera
   ; el límite de fuerza que puede aguantar una persona puede hacerse decreciente con la velocidad efectiva que lleve el agente (probar como funciona).
   tau ; Factor de relajación
-  ; T ; Fuerza límite que recibe una persona para no poder moverse N
-  T_M ; Presión máxima que recibe una persona a partir de la cual no puede moverse (N/m)
+  ;T ; Fuerza límite que recibe una persona para no poder moverse N
+  ;T_M ; Presión máxima que recibe una persona a partir de la cual no puede moverse (N/m)
   L_max ; Distancia máxima del escenario
   ; v_max ; Velocidad máxima permitida
   v_min ; Velocidad mínima permitida
@@ -559,7 +559,7 @@ to setup-personas
   ask personas [
     set r (random 15 + 25) / 100
     set l (10 * r)
-    set d_a (2 * r + 2)
+    ;set d_a (2 * r + 2)
     set d_c (8 * r)
     set d_l (4 * r)
     set m_g 6.5
