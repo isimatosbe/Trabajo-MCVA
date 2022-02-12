@@ -112,6 +112,7 @@ to setup
   if escenario = "E" [setup-E]
   if escenario = "F" [setup-F]
   if escenario = "manual" [setup-manual]
+  ct
   setup-personas
   reset-ticks
 end
@@ -1184,7 +1185,7 @@ INPUTBOX
 286
 370
 nSalidas
-1.0
+2.0
 1
 0
 Number
@@ -1195,7 +1196,7 @@ INPUTBOX
 426
 370
 visibility
-[1]
+[1 1]
 1
 0
 String
