@@ -72,7 +72,7 @@ globals [
   personas_aterradas; personas con pánico = 1
   personas_asustadas; personas con pánico > 0.5
   para
-  milisegundo ; variable para considerar cada tick como un milisegundo
+  decisegundo ; variable para considerar cada tick como un decisegundo
   escenario ; Variable para seleccionar el escenario
   panico_global
   ; v_max_desired_inicial ; es la velocidad deseada máxima que tiene un agente sin pánico y sin agentes alrededor
@@ -98,7 +98,7 @@ to setup
   set espera 0.1
   set tau 0.5
   set para 0
-  set milisegundo 10
+  set decisegundo 10
   set coseno_max cos 60
   set v_min 0.35
   set A 2000
@@ -124,7 +124,7 @@ end
 to evacuate
   let time1 timer
 
-  if milisegundo = 10 [
+  if decisegundo = 10 [
     set personas_aterradas 0
     set personas_asustadas 0
     let contador_panico_alto 0
@@ -155,7 +155,7 @@ to evacuate
           if contador_cercanos != 0 [
             set panic panico_medio / contador_cercanos
           ]
-        ] ;ACTUALIZANDO LA VELOCIDAD EN FUNCIÓN DEL PÁNICO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ]  ;ACTUALIZANDO LA VELOCIDAD EN FUNCIÓN DEL PÁNICO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         [ ;else panic < 0.5
           set v_nueva_aux list (item 0 v_goal + item 0 v_m) (item 1 v_goal + item 1 v_m)
         ]
@@ -177,7 +177,7 @@ to evacuate
     ifelse (count personas with [herido = 0] >= 1 and para = 0)
     [set panico_global (suma_panico / count personas with [herido = 0])
       set g_medio (g_medio / count personas with [herido = 0])] [stop]
-    set milisegundo 0
+    set decisegundo 0
   ]
 
   set v_media 0 ; Para representar la velocidad media de todas las personas
@@ -210,7 +210,7 @@ to evacuate
   [
     set v_media (v_media / count personas)
   ] [stop]
-  set milisegundo milisegundo + 1
+  set decisegundo decisegundo + 1
 
   while[timer - time1 < espera] [] ;Realizamos un espera para ver una simulación temporal realista y constante
 
@@ -499,7 +499,7 @@ to-report fuerzas_patches
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ; CALCULO DE LA FUERZA TOTAL RECIBIDA
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ifelse milisegundo < 11 ; Solo consideramos el término de separación por fuerza social cada segundo
+    ifelse decisegundo < 11 ; Solo consideramos el término de separación por fuerza social cada segundo
     [ ; Primer término de la fuerza entre dos agentes
       set termino_1 list (A * e ^ (r_d / B) * item 0 n_ij) (A * e ^ (r_d / B) * item 1 n_ij)
     ]
@@ -981,10 +981,10 @@ PENS
 MONITOR
 794
 505
-875
+876
 550
-milisegundo
-milisegundo
+decisegundo
+decisegundo
 17
 1
 11
@@ -1185,7 +1185,7 @@ INPUTBOX
 286
 370
 nSalidas
-2.0
+1.0
 1
 0
 Number
@@ -1196,7 +1196,7 @@ INPUTBOX
 426
 370
 visibility
-[1 1]
+[1]
 1
 0
 String
