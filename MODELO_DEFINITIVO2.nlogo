@@ -94,6 +94,7 @@ to reset
 end
 
 to setup
+  ct
   set espera 0.1
   set tau 0.5
   set para 0
@@ -112,7 +113,6 @@ to setup
   if escenario = "E" [setup-E]
   if escenario = "F" [setup-F]
   if escenario = "manual" [setup-manual]
-  ct
   setup-personas
   reset-ticks
 end
