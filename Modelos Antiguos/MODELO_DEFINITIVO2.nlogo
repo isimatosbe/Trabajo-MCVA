@@ -1,11 +1,11 @@
 breed [personas persona] ;Personas dentro de la simulación
-;breed [obstaculos obstaculo] ;Obstaculos dentro de la simulación
 breed [puertas puerta] ;Creamos las puertas
+
 personas-own [
   r ; Radio: entre 0,25 y 0,4 m
-  w ; Peso
+  w ; Peso: entre 40kg y 80kg
   v ; Velocidad
-  v_nueva ; velocidad nueva
+  v_nueva ; Velocidad nueva
   v_nueva_aux ; Velocidad deseada que calculamos en cada instante si el pánico fuera 0
   v_max_desired ; Módulo máximo de la velocidad deseada que tienen los agentes
   v_goal_mod ; Módulo del término de la velocidad que decimos que tienen los agentes en dirección a la puerta
